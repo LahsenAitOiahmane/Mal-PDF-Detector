@@ -203,8 +203,8 @@ def process_pdf_files(benign_folder, malicious_folder, output_csv):
 def main():
     """Main function to run the PDF analysis."""
     # Define folder paths
-    benign_folder = '../Data/Benign'
-    malicious_folder = '../Data/Malicious'
+    benign_folder = 'Data/Benign'
+    malicious_folder = 'Data/Malicious'
     
     # Output CSV file (in the same directory as the script)
     script_dir = Path(__file__).parent
