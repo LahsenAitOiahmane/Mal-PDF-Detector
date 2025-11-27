@@ -18,19 +18,27 @@ class
 Name: proportion, dtype: float64
 
 ================================================================================
+ZERO VARIANCE CHECK (Useless Feature Detector)
+================================================================================
+
+[OK] No zero variance features detected. All features have variation.
+
+[OK] Engineered features created: log_file_size, keyword_sum, keyword_density, entropy_density
+
+================================================================================
 BASIC STATISTICS
 ================================================================================
-          file_size       entropy    keyword_JS  ...   keyword_URI  keyword_ObjStm         class
-count  2.391000e+04  23910.000000  23910.000000  ...  23910.000000    23910.000000  23910.000000
-mean   5.915883e+04      7.331036      0.678879  ...      1.571644        1.238896      0.619113
-std    2.568757e+05      1.117918      3.291189  ...     92.194977        6.023541      0.485615
-min    0.000000e+00      0.000000      0.000000  ...      0.000000        0.000000      0.000000
-25%    9.492250e+03      7.284457      0.000000  ...      0.000000        0.000000      0.000000
-50%    1.591650e+04      7.822085      1.000000  ...      0.000000        0.000000      1.000000
-75%    7.240550e+04      7.919972      1.000000  ...      0.000000        0.000000      1.000000
-max    2.381658e+07      7.999862    404.000000  ...  12970.000000      600.000000      1.000000
+          file_size  log_file_size   pdf_version       entropy  ...  keyword_EmbeddedFile   keyword_URI  keyword_ObjStm         class
+count  2.391000e+04   23910.000000  23910.000000  23910.000000  ...          23910.000000  23910.000000    23910.000000  23910.000000
+mean   5.915883e+04      10.053389      1.326935      7.331036  ...              0.696361      1.571644        1.238896      0.619113
+std    2.568757e+05       1.264267      0.319009      1.117918  ...              2.262035     92.194977        6.023541      0.485615
+min    0.000000e+00       0.000000      0.000000      0.000000  ...              0.000000      0.000000        0.000000      0.000000
+25%    9.492250e+03       9.158336      1.300000      7.284457  ...              0.000000      0.000000        0.000000      0.000000
+50%    1.591650e+04       9.675174      1.300000      7.822085  ...              0.000000      0.000000        0.000000      1.000000
+75%    7.240550e+04      11.190051      1.400000      7.919972  ...              0.000000      0.000000        0.000000      1.000000
+max    2.381658e+07      16.985892      2.400000      7.999862  ...             17.000000  12970.000000      600.000000      1.000000
 
-[8 rows x 11 columns]
+[8 rows x 16 columns]
 
 ================================================================================
 1. FEATURE PREDICTIVE POWER ANALYSIS (BIVARIATE)
@@ -41,18 +49,24 @@ max    2.381658e+07      7.999862    404.000000  ...  12970.000000      600.0000
 
 --------------------------------------------------------------------------------
 SEPARATION METRICS (Higher = Better Separation)
+Direction: Malware↑ = higher in malware, Benign↑ = higher in benign
 --------------------------------------------------------------------------------
-             Feature  Median_Diff  Cohens_D  Mann_Whitney_p  Benign_Median  Malicious_Median
-  keyword_OpenAction     1.000000  2.567701    0.000000e+00       0.000000          1.000000
-          keyword_JS     1.000000  0.278218    0.000000e+00       0.000000          1.000000
-  keyword_JavaScript     1.000000  0.275805    0.000000e+00       0.000000          1.000000
-           file_size 66186.000000  0.243346    0.000000e+00   75923.000000       9737.000000
-             entropy     0.138626  0.135242   1.014898e-124       7.724915          7.863541
-          keyword_AA     0.000000  0.000000    2.731680e-29       0.000000          0.000000
-      keyword_Launch     0.000000  0.000000    1.293592e-09       0.000000          0.000000
-keyword_EmbeddedFile     0.000000  0.000000    9.856999e-05       0.000000          0.000000
-         keyword_URI     0.000000  0.000000   2.518407e-306       0.000000          0.000000
-      keyword_ObjStm     0.000000  0.000000    0.000000e+00       0.000000          0.000000
+             Feature  Cohens_D Direction  Median_Diff  Mann_Whitney_p  Benign_Median  Malicious_Median
+  keyword_OpenAction  2.567701  Malware↑     1.000000    0.000000e+00       0.000000          1.000000
+       log_file_size  2.152966   Benign↑     2.053697    0.000000e+00      11.237488          9.183791
+     entropy_density  1.223616  Malware↑     0.137150    0.000000e+00       0.626411          0.763561
+         pdf_version  0.349996   Benign↑     0.100000    0.000000e+00       1.400000          1.300000
+          keyword_JS  0.278218  Malware↑     1.000000    0.000000e+00       0.000000          1.000000
+  keyword_JavaScript  0.275805  Malware↑     1.000000    0.000000e+00       0.000000          1.000000
+           file_size  0.243346   Benign↑ 66186.000000    0.000000e+00   75923.000000       9737.000000
+             entropy  0.135242  Malware↑     0.138626   1.014898e-124       7.724915          7.863541
+     keyword_density  0.041112  Malware↑     0.217248    0.000000e+00       0.079048          0.296296
+         keyword_sum  0.022732  Malware↑     2.000000    0.000000e+00       1.000000          3.000000
+          keyword_AA  0.000000     Equal     0.000000    2.731680e-29       0.000000          0.000000
+      keyword_Launch  0.000000     Equal     0.000000    1.293592e-09       0.000000          0.000000
+keyword_EmbeddedFile  0.000000     Equal     0.000000    9.856999e-05       0.000000          0.000000
+         keyword_URI  0.000000     Equal     0.000000   2.518407e-306       0.000000          0.000000
+      keyword_ObjStm  0.000000     Equal     0.000000    0.000000e+00       0.000000          0.000000
 
 ================================================================================
 2. MULTICOLLINEARITY AND REDUNDANCY CHECK (MULTIVARIATE)
@@ -63,27 +77,37 @@ keyword_EmbeddedFile     0.000000  0.000000    9.856999e-05       0.000000      
 --------------------------------------------------------------------------------
 CORRELATION WITH TARGET VARIABLE (class)
 --------------------------------------------------------------------------------
-keyword_OpenAction      0.594747
-keyword_ObjStm         -0.238235
-keyword_JavaScript      0.155234
-file_size              -0.131124
-keyword_JS              0.117541
-entropy                -0.113282
-keyword_AA             -0.050544
-keyword_EmbeddedFile    0.029576
-keyword_URI            -0.007306
-keyword_Launch         -0.002799
+(Positive r = higher values indicate malware, Negative r = higher values indicate benign)
+log_file_size              -0.649  → Benign
+keyword_OpenAction          0.595  → Malware
+entropy_density             0.312  → Malware
+pdf_version                -0.289  → Benign
+keyword_ObjStm             -0.238  → Benign
+keyword_JavaScript          0.155  → Malware
+file_size                  -0.131  → Benign
+keyword_JS                  0.118  → Malware
+entropy                    -0.113  → Benign
+keyword_AA                 -0.051  → Benign
+keyword_EmbeddedFile        0.030  → Malware
+keyword_sum                -0.011  → Benign
+keyword_density            -0.009  → Benign
+keyword_URI                -0.007  → Benign
+keyword_Launch             -0.003  → Benign
 
 --------------------------------------------------------------------------------
 HIGHLY CORRELATED FEATURE PAIRS (|r| > 0.95, excluding class)
 --------------------------------------------------------------------------------
- Feature_1          Feature_2  Correlation
-keyword_JS keyword_JavaScript     0.990622
+      Feature_1          Feature_2  Correlation
+    keyword_sum    keyword_density     0.997324
+    keyword_sum        keyword_URI     0.993195
+keyword_density        keyword_URI     0.986479
+     keyword_JS keyword_JavaScript     0.990622
 
 --------------------------------------------------------------------------------
 MODERATELY CORRELATED FEATURE PAIRS (0.7 < |r| <= 0.95, excluding class)
 --------------------------------------------------------------------------------
-No feature pairs with 0.7 < |r| <= 0.95 found.
+Feature_1       Feature_2  Correlation
+  entropy entropy_density     0.808503
 
 ================================================================================
 3. SYNTHESIS AND FINAL RECOMMENDATIONS
@@ -94,27 +118,40 @@ EDA SUMMARY REPORT
 ================================================================================
 
 1. MOST PREDICTIVE FEATURES (Top 5 by Cohen's D):
-   - keyword_OpenAction: Cohen's D = 2.568, p-value = 0.00e+00
-   - keyword_JS: Cohen's D = 0.278, p-value = 0.00e+00
-   - keyword_JavaScript: Cohen's D = 0.276, p-value = 0.00e+00
-   - file_size: Cohen's D = 0.243, p-value = 0.00e+00
-   - entropy: Cohen's D = 0.135, p-value = 1.01e-124
+   - keyword_OpenAction: Cohen's D = 2.568 (Malware↑), p-value = 0.00e+00
+   - log_file_size: Cohen's D = 2.153 (Benign↑), p-value = 0.00e+00
+   - entropy_density: Cohen's D = 1.224 (Malware↑), p-value = 0.00e+00
+   - pdf_version: Cohen's D = 0.350 (Benign↑), p-value = 0.00e+00
+   - keyword_JS: Cohen's D = 0.278 (Malware↑), p-value = 0.00e+00
 
 2. FEATURES HIGHLY CORRELATED WITH TARGET (|r| > 0.3):
-   - keyword_OpenAction: r = 0.595
+   (Positive r = higher values indicate malware, Negative r = higher values indicate benign)
+   - log_file_size: r = -0.649 → Benign
+   - keyword_OpenAction: r = 0.595 → Malware
+   - entropy_density: r = 0.312 → Malware
 
 3. REDUNDANT FEATURES (High inter-feature correlation):
+   - keyword_sum <-> keyword_density: r = 0.997
+     Recommendation: Keep keyword_sum (higher correlation with target)
+   - keyword_sum <-> keyword_URI: r = 0.993
+     Recommendation: Keep keyword_sum (higher correlation with target)
+   - keyword_density <-> keyword_URI: r = 0.986
+     Recommendation: Keep keyword_density (higher correlation with target)
    - keyword_JS <-> keyword_JavaScript: r = 0.991
      Recommendation: Keep keyword_JavaScript (higher correlation with target)
 
-4. FEATURE ENGINEERING RECOMMENDATIONS:
+4. ENGINEERED FEATURES PERFORMANCE:
    - keyword_sum: r with target = -0.011
-   - keyword_density (keyword_sum/file_size): r with target = 0.384
+   - keyword_density: r with target = -0.009
+   - entropy_density: r with target = 0.312
 
 5. FINAL FEATURE RECOMMENDATIONS:
 
    PRIORITY 1 (Must Include - High Predictive Power):
       - keyword_OpenAction
+      - log_file_size
+      - entropy_density
+      - pdf_version
 
    PRIORITY 2 (Should Include - Moderate Predictive Power):
       - keyword_JS
@@ -125,6 +162,8 @@ EDA SUMMARY REPORT
    PRIORITY 3 (Consider Including - Low but Non-zero Power):
 
    FEATURES TO EXCLUDE:
+      [EXCLUDE] keyword_density (Cohen's D = 0.041)
+      [EXCLUDE] keyword_sum (Cohen's D = 0.023)
       [EXCLUDE] keyword_AA (Cohen's D = 0.000)
       [EXCLUDE] keyword_Launch (Cohen's D = 0.000)
       [EXCLUDE] keyword_EmbeddedFile (Cohen's D = 0.000)

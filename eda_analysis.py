@@ -160,7 +160,7 @@ plt.savefig(script_dir / 'boxplots_by_class.png', dpi=300, bbox_inches='tight')
 print("\n[OK] Box plots saved to: boxplots_by_class.png")
 
 # Create violin plots for key features (entropy and keyword counts)
-key_features = ['entropy', 'keyword_JS', 'keyword_JavaScript', 'keyword_AA', 
+key_features = ['entropy', 'keyword_density', 'entropy_density', 'keyword_JS', 'keyword_JavaScript', 'keyword_AA', 
                 'keyword_OpenAction', 'keyword_Launch', 'keyword_EmbeddedFile', 
                 'keyword_URI', 'keyword_ObjStm']
 
