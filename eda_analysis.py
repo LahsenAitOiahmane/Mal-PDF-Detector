@@ -31,8 +31,40 @@ print(df['class'].value_counts().sort_index())
 print(f"\nClass Distribution (%):")
 print(df['class'].value_counts(normalize=True).sort_index() * 100)
 
+# ============================================================================
+# ZERO VARIANCE CHECK (Useless Feature Detector)
+# ============================================================================
+print("\n" + "=" * 80)
+print("ZERO VARIANCE CHECK (Useless Feature Detector)")
+print("=" * 80)
+
+# Check for features with zero variance (all same values)
+zero_variance_features = []
+for col in df.columns:
+    if col not in ['file_name', 'class']:  # Skip non-numeric columns
+        try:
+            if df[col].nunique() <= 1:  # Zero or near-zero variance
+                zero_variance_features.append(col)
+                print(f"[WARNING] Zero variance feature detected: {col} (all values = {df[col].iloc[0] if len(df) > 0 else 'N/A'})")
+        except:
+            pass
+
+if zero_variance_features:
+    print(f"\n[ACTION REQUIRED] {len(zero_variance_features)} feature(s) with zero variance found.")
+    print("These features should be dropped before model training as they provide no information.")
+    print(f"Features to drop: {', '.join(zero_variance_features)}")
+else:
+    print("\n[OK] No zero variance features detected. All features have variation.")
+
+# ============================================================================
+# LOGARITHMIC SCALING FOR FILE SIZE
+# ============================================================================
+# Create log-transformed file_size for better visualization
+df['log_file_size'] = np.log1p(df['file_size'])  # log(1+x) handles zeros
+print(f"\n[OK] Created log_file_size feature (log(1+file_size)) for better visualization")
+
 # Identify numerical features (exclude file_name and pdf_version for now)
-numerical_features = ['file_size', 'entropy', 'keyword_JS', 'keyword_JavaScript', 
+numerical_features = ['file_size', 'log_file_size', 'entropy', 'keyword_JS', 'keyword_JavaScript', 
                       'keyword_AA', 'keyword_OpenAction', 'keyword_Launch', 
                       'keyword_EmbeddedFile', 'keyword_URI', 'keyword_ObjStm', 'class']
 
@@ -74,8 +106,8 @@ for idx, feature in enumerate(features_to_plot):
     benign_data = df[df['class'] == 0][feature]
     malicious_data = df[df['class'] == 1][feature]
     
-    benign_median = benign_data.median()
-    malicious_median = malicious_data.median()
+    benign_median = benign_data.median() # type: ignore
+    malicious_median = malicious_data.median() # type: ignore
     separation = abs(malicious_median - benign_median) / (benign_data.std() + malicious_data.std() + 1e-10)
     
     # Add text annotation
@@ -109,8 +141,8 @@ for idx, feature in enumerate(key_features):
     ax = axes[idx]
     
     # Create violin plot
-    data_to_plot = [df[df['class'] == 0][feature].values, 
-                    df[df['class'] == 1][feature].values]
+    data_to_plot = [df[df['class'] == 0][feature].values, # type: ignore
+                    df[df['class'] == 1][feature].values] # type: ignore
     
     parts = ax.violinplot(data_to_plot, positions=[0, 1], showmeans=True, showmedians=True)
     
@@ -144,8 +176,8 @@ for feature in features_to_plot:
     benign_data = df[df['class'] == 0][feature]
     malicious_data = df[df['class'] == 1][feature]
     
-    benign_median = benign_data.median()
-    malicious_median = malicious_data.median()
+    benign_median = benign_data.median() # type: ignore
+    malicious_median = malicious_data.median() # type: ignore
     median_diff = abs(malicious_median - benign_median)
     
     # Effect size (Cohen's d approximation)
@@ -186,7 +218,7 @@ print("2. MULTICOLLINEARITY AND REDUNDANCY CHECK (MULTIVARIATE)")
 print("=" * 80)
 
 # Calculate correlation matrix
-correlation_matrix = df[numerical_features].corr()
+correlation_matrix = df[numerical_features].corr() # type: ignore
 
 # Plot correlation heatmap
 plt.figure(figsize=(14, 12))
@@ -203,7 +235,7 @@ print("\n[OK] Correlation heatmap saved to: correlation_heatmap.png")
 print("\n" + "-" * 80)
 print("CORRELATION WITH TARGET VARIABLE (class)")
 print("-" * 80)
-target_correlations = correlation_matrix['class'].drop('class').sort_values(key=abs, ascending=False)
+target_correlations = correlation_matrix['class'].drop('class').sort_values(key=abs, ascending=False) # type: ignore
 print(target_correlations.to_string())
 
 # Find highly correlated feature pairs (excluding class)
@@ -218,7 +250,12 @@ corr_subset = correlation_matrix.loc[features_for_corr, features_for_corr]
 for i in range(len(corr_subset.columns)):
     for j in range(i+1, len(corr_subset.columns)):
         corr_value = corr_subset.iloc[i, j]
-        if abs(corr_value) > 0.95:
+        # Safely coerce the correlation value to a float-compatible numeric and skip if invalid
+        try:
+            corr_val_num = np.float64(corr_value)  # type: ignore
+        except (ValueError, TypeError):
+            continue
+        if not np.isnan(corr_val_num) and abs(corr_val_num) > 0.95:
             high_corr_pairs.append({
                 'Feature_1': corr_subset.columns[i],
                 'Feature_2': corr_subset.columns[j],
@@ -240,7 +277,12 @@ moderate_corr_pairs = []
 for i in range(len(corr_subset.columns)):
     for j in range(i+1, len(corr_subset.columns)):
         corr_value = corr_subset.iloc[i, j]
-        if 0.7 < abs(corr_value) <= 0.95:
+        # Safely coerce the correlation value to a float-compatible numeric and skip if invalid
+        try:
+            corr_val_num = np.float64(corr_value)  # type: ignore
+        except (ValueError, TypeError):
+            continue
+        if not np.isnan(corr_val_num) and 0.7 < abs(corr_val_num) <= 0.95:
             moderate_corr_pairs.append({
                 'Feature_1': corr_subset.columns[i],
                 'Feature_2': corr_subset.columns[j],
@@ -274,7 +316,7 @@ for idx, row in top_features.iterrows():
 
 report_lines.append("\n2. FEATURES HIGHLY CORRELATED WITH TARGET (|r| > 0.3):")
 high_target_corr = target_correlations[abs(target_correlations) > 0.3]
-for feature, corr in high_target_corr.items():
+for feature, corr in high_target_corr.items(): # type: ignore
     report_lines.append(f"   - {feature}: r = {corr:.3f}")
 
 report_lines.append("\n3. REDUNDANT FEATURES (High inter-feature correlation):")
@@ -282,8 +324,8 @@ if high_corr_pairs:
     for pair in high_corr_pairs:
         report_lines.append(f"   - {pair['Feature_1']} <-> {pair['Feature_2']}: r = {pair['Correlation']:.3f}")
         # Determine which feature to keep based on target correlation
-        feat1_target_corr = abs(target_correlations.get(pair['Feature_1'], 0))
-        feat2_target_corr = abs(target_correlations.get(pair['Feature_2'], 0))
+        feat1_target_corr = abs(target_correlations.get(pair['Feature_1'], 0)) # type: ignore
+        feat2_target_corr = abs(target_correlations.get(pair['Feature_2'], 0)) # type: ignore
         if feat1_target_corr >= feat2_target_corr:
             report_lines.append(f"     Recommendation: Keep {pair['Feature_1']} (higher correlation with target)")
         else:
@@ -298,12 +340,12 @@ df['keyword_sum'] = df[['keyword_JS', 'keyword_JavaScript', 'keyword_AA',
                         'keyword_URI', 'keyword_ObjStm']].sum(axis=1)
 
 # Check correlation of engineered features
-keyword_sum_corr = df['keyword_sum'].corr(df['class'])
+keyword_sum_corr = df['keyword_sum'].corr(df['class']) # type: ignore
 report_lines.append(f"   - keyword_sum: r with target = {keyword_sum_corr:.3f}")
 
 # Keyword density (keywords per file size)
 df['keyword_density'] = df['keyword_sum'] / (df['file_size'] + 1)  # +1 to avoid division by zero
-keyword_density_corr = df['keyword_density'].corr(df['class'])
+keyword_density_corr = df['keyword_density'].corr(df['class']) # type: ignore
 report_lines.append(f"   - keyword_density (keyword_sum/file_size): r with target = {keyword_density_corr:.3f}")
 
 report_lines.append("\n5. FINAL FEATURE RECOMMENDATIONS:")

@@ -24,7 +24,7 @@ keyword_cols = ['keyword_JS', 'keyword_JavaScript', 'keyword_AA',
 df['keyword_sum'] = df[keyword_cols].sum(axis=1)
 df['keyword_density'] = df['keyword_sum'] / (df['file_size'] + 1)  # +1 to avoid division by zero
 
-print(f"   keyword_density correlation with target: {df['keyword_density'].corr(df['class']):.3f}")
+print(f"   keyword_density correlation with target: {df['keyword_density'].corr(df['class']):.3f}") # type: ignore
 
 # Select final recommended features
 print("\n[2] Selecting final feature set...")
@@ -48,7 +48,7 @@ print(f"Features included: {len(final_features) - 2} features + file_name + clas
 print(f"\nFeatures:")
 for feat in final_features:
     if feat != 'class' and feat != 'file_name':
-        corr = df[feat].corr(df['class'])
+        corr = df[feat].corr(df['class']) # type: ignore
         print(f"  - {feat:25s} (r with target: {corr:7.3f})")
 
 # Save final dataset
