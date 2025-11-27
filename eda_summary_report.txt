@@ -1,0 +1,42 @@
+
+================================================================================
+EDA SUMMARY REPORT
+================================================================================
+
+1. MOST PREDICTIVE FEATURES (Top 5 by Cohen's D):
+   - keyword_OpenAction: Cohen's D = 2.568, p-value = 0.00e+00
+   - keyword_JS: Cohen's D = 0.278, p-value = 0.00e+00
+   - keyword_JavaScript: Cohen's D = 0.276, p-value = 0.00e+00
+   - file_size: Cohen's D = 0.243, p-value = 0.00e+00
+   - entropy: Cohen's D = 0.135, p-value = 1.01e-124
+
+2. FEATURES HIGHLY CORRELATED WITH TARGET (|r| > 0.3):
+   - keyword_OpenAction: r = 0.595
+
+3. REDUNDANT FEATURES (High inter-feature correlation):
+   - keyword_JS <-> keyword_JavaScript: r = 0.991
+     Recommendation: Keep keyword_JavaScript (higher correlation with target)
+
+4. FEATURE ENGINEERING RECOMMENDATIONS:
+   - keyword_sum: r with target = -0.011
+   - keyword_density (keyword_sum/file_size): r with target = 0.384
+
+5. FINAL FEATURE RECOMMENDATIONS:
+
+   PRIORITY 1 (Must Include - High Predictive Power):
+      - keyword_OpenAction
+
+   PRIORITY 2 (Should Include - Moderate Predictive Power):
+      - keyword_JS
+      - keyword_JavaScript
+      - file_size
+      - entropy
+
+   PRIORITY 3 (Consider Including - Low but Non-zero Power):
+
+   FEATURES TO EXCLUDE:
+      [EXCLUDE] keyword_AA (Cohen's D = 0.000)
+      [EXCLUDE] keyword_Launch (Cohen's D = 0.000)
+      [EXCLUDE] keyword_EmbeddedFile (Cohen's D = 0.000)
+      [EXCLUDE] keyword_URI (Cohen's D = 0.000)
+      [EXCLUDE] keyword_ObjStm (Cohen's D = 0.000)

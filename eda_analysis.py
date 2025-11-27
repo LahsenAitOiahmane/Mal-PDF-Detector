@@ -91,7 +91,7 @@ for idx in range(n_features, len(axes)):
 plt.suptitle('Box Plots: Feature Distributions by Class', fontsize=16, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig(script_dir / 'boxplots_by_class.png', dpi=300, bbox_inches='tight')
-print("\n✓ Box plots saved to: boxplots_by_class.png")
+print("\n[OK] Box plots saved to: boxplots_by_class.png")
 
 # Create violin plots for key features (entropy and keyword counts)
 key_features = ['entropy', 'keyword_JS', 'keyword_JavaScript', 'keyword_AA', 
@@ -132,7 +132,7 @@ for idx in range(n_key, len(axes)):
 plt.suptitle('Violin Plots: Key Feature Distributions by Class', fontsize=16, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig(script_dir / 'violinplots_by_class.png', dpi=300, bbox_inches='tight')
-print("✓ Violin plots saved to: violinplots_by_class.png")
+print("[OK] Violin plots saved to: violinplots_by_class.png")
 
 # Calculate separation metrics for all features
 print("\n" + "-" * 80)
@@ -197,7 +197,7 @@ sns.heatmap(correlation_matrix, annot=True, fmt='.3f', cmap='coolwarm',
 plt.title('Correlation Heatmap: All Numerical Features', fontsize=16, fontweight='bold', pad=20)
 plt.tight_layout()
 plt.savefig(script_dir / 'correlation_heatmap.png', dpi=300, bbox_inches='tight')
-print("\n✓ Correlation heatmap saved to: correlation_heatmap.png")
+print("\n[OK] Correlation heatmap saved to: correlation_heatmap.png")
 
 # Analyze correlations with target variable
 print("\n" + "-" * 80)
@@ -281,7 +281,13 @@ report_lines.append("\n3. REDUNDANT FEATURES (High inter-feature correlation):")
 if high_corr_pairs:
     for pair in high_corr_pairs:
         report_lines.append(f"   - {pair['Feature_1']} <-> {pair['Feature_2']}: r = {pair['Correlation']:.3f}")
-        report_lines.append(f"     → Recommendation: Keep {pair['Feature_1']} (higher correlation with target)")
+        # Determine which feature to keep based on target correlation
+        feat1_target_corr = abs(target_correlations.get(pair['Feature_1'], 0))
+        feat2_target_corr = abs(target_correlations.get(pair['Feature_2'], 0))
+        if feat1_target_corr >= feat2_target_corr:
+            report_lines.append(f"     Recommendation: Keep {pair['Feature_1']} (higher correlation with target)")
+        else:
+            report_lines.append(f"     Recommendation: Keep {pair['Feature_2']} (higher correlation with target)")
 else:
     report_lines.append("   - No highly redundant features found (|r| > 0.95)")
 
@@ -304,39 +310,45 @@ report_lines.append("\n5. FINAL FEATURE RECOMMENDATIONS:")
 report_lines.append("\n   PRIORITY 1 (Must Include - High Predictive Power):")
 priority1 = separation_df[separation_df['Cohens_D'] > 0.3].head(5)
 for idx, row in priority1.iterrows():
-    report_lines.append(f"      • {row['Feature']}")
+    report_lines.append(f"      - {row['Feature']}")
 
 report_lines.append("\n   PRIORITY 2 (Should Include - Moderate Predictive Power):")
 priority2 = separation_df[(separation_df['Cohens_D'] > 0.1) & (separation_df['Cohens_D'] <= 0.3)]
 for idx, row in priority2.iterrows():
-    report_lines.append(f"      • {row['Feature']}")
+    report_lines.append(f"      - {row['Feature']}")
 
 report_lines.append("\n   PRIORITY 3 (Consider Including - Low but Non-zero Power):")
 priority3 = separation_df[(separation_df['Cohens_D'] > 0.05) & (separation_df['Cohens_D'] <= 0.1)]
 for idx, row in priority3.iterrows():
-    report_lines.append(f"      • {row['Feature']}")
+    report_lines.append(f"      - {row['Feature']}")
 
 report_lines.append("\n   FEATURES TO EXCLUDE:")
 low_power = separation_df[separation_df['Cohens_D'] <= 0.05]
 if len(low_power) > 0:
     for idx, row in low_power.iterrows():
-        report_lines.append(f"      ✗ {row['Feature']} (Cohen's D = {row['Cohens_D']:.3f})")
+        report_lines.append(f"      [EXCLUDE] {row['Feature']} (Cohen's D = {row['Cohens_D']:.3f})")
 else:
     report_lines.append("      (None - all features show some separation)")
 
 # Save report
 report_text = "\n".join(report_lines)
-print(report_text)
+# Print report with error handling for Windows console
+try:
+    print(report_text)
+except UnicodeEncodeError:
+    # Fallback: print without special characters
+    safe_report = report_text.encode('ascii', 'ignore').decode('ascii')
+    print(safe_report)
 
-with open(script_dir / 'eda_summary_report.txt', 'w') as f:
+with open(script_dir / 'eda_summary_report.txt', 'w', encoding='utf-8') as f:
     f.write(report_text)
 
-print(f"\n✓ Summary report saved to: eda_summary_report.txt")
+print(f"\n[OK] Summary report saved to: eda_summary_report.txt")
 
 # Save engineered features to CSV for potential use
 df_engineered = df.copy()
 df_engineered.to_csv(script_dir / 'pdf_features_with_engineered.csv', index=False)
-print("✓ Dataset with engineered features saved to: pdf_features_with_engineered.csv")
+print("[OK] Dataset with engineered features saved to: pdf_features_with_engineered.csv")
 
 print("\n" + "=" * 80)
 print("EDA ANALYSIS COMPLETE!")
