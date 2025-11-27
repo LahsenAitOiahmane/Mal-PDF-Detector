@@ -57,16 +57,40 @@ else:
     print("\n[OK] No zero variance features detected. All features have variation.")
 
 # ============================================================================
-# LOGARITHMIC SCALING FOR FILE SIZE
+# FEATURE ENGINEERING (Prepare Data BEFORE Analysis)
 # ============================================================================
-# Create log-transformed file_size for better visualization
-df['log_file_size'] = np.log1p(df['file_size'])  # log(1+x) handles zeros
-print(f"\n[OK] Created log_file_size feature (log(1+file_size)) for better visualization")
+# 1. Log-transformed file_size
+df['log_file_size'] = np.log1p(df['file_size'])
 
-# Identify numerical features (exclude file_name and pdf_version for now)
-numerical_features = ['file_size', 'log_file_size', 'entropy', 'keyword_JS', 'keyword_JavaScript', 
-                      'keyword_AA', 'keyword_OpenAction', 'keyword_Launch', 
-                      'keyword_EmbeddedFile', 'keyword_URI', 'keyword_ObjStm', 'class']
+# 2. Keyword Sum (Total suspicious markers)
+keyword_cols = ['keyword_JS', 'keyword_JavaScript', 'keyword_AA', 'keyword_OpenAction', 
+                'keyword_Launch', 'keyword_EmbeddedFile', 'keyword_URI', 'keyword_ObjStm']
+df['keyword_sum'] = df[keyword_cols].sum(axis=1)
+
+# 3. Keyword Density (Suspicious markers per byte)
+# This is usually a STRONGER feature than raw counts
+df['keyword_density'] = df['keyword_sum'] / (df['log_file_size'] + 1)
+
+# 4. Entropy Density (Complexity per size)
+# High entropy in small files = packed malware
+df['entropy_density'] = df['entropy'] / (df['log_file_size'] + 1)
+
+print(f"\n[OK] Engineered features created: log_file_size, keyword_sum, keyword_density, entropy_density")
+
+# ============================================================================
+# DEFINE FEATURES LIST
+# ============================================================================
+# Identify numerical features (NOW includes engineered ones + pdf_version)
+numerical_features = [
+    'file_size', 'log_file_size', 'pdf_version', 'entropy', 'entropy_density',
+    'keyword_sum', 'keyword_density',
+    'keyword_JS', 'keyword_JavaScript', 'keyword_AA', 'keyword_OpenAction', 
+    'keyword_Launch', 'keyword_EmbeddedFile', 'keyword_URI', 'keyword_ObjStm', 
+    'class'
+]
+
+# Ensure pdf_version is numeric (sometimes it reads as string '1.4')
+df['pdf_version'] = pd.to_numeric(df['pdf_version'], errors='coerce').fillna(0)
 
 # Basic statistics
 print("\n" + "=" * 80)
@@ -102,6 +126,11 @@ for idx, feature in enumerate(features_to_plot):
     ax.set_ylabel(feature, fontsize=10)
     ax.set_xticklabels(['Benign', 'Malicious'])
     
+    # Use logarithmic scale for file_size (original, not log_file_size)
+    if feature == 'file_size':
+        ax.set_yscale('log')
+        ax.set_ylabel('file_size (log scale)', fontsize=10)
+    
     # Calculate and display separation metrics
     benign_data = df[df['class'] == 0][feature]
     malicious_data = df[df['class'] == 1][feature]
@@ -110,9 +139,14 @@ for idx, feature in enumerate(features_to_plot):
     malicious_median = malicious_data.median() # type: ignore
     separation = abs(malicious_median - benign_median) / (benign_data.std() + malicious_data.std() + 1e-10)
     
+    # Calculate direction for annotation
+    direction_arrow = "↑" if malicious_median > benign_median else "↓" if malicious_median < benign_median else "="
+    direction_text = "Malware↑" if malicious_median > benign_median else "Benign↑" if malicious_median < benign_median else "Equal"
+    
     # Add text annotation
-    ax.text(0.5, 0.95, f'Median Diff: {abs(malicious_median - benign_median):.2f}\n'
-            f'Separation: {separation:.3f}',
+    ax.text(0.5, 0.95, f'Median Diff: {abs(malicious_median - benign_median):.2f} {direction_arrow}\n'
+            f'Separation: {separation:.3f}\n'
+            f'Direction: {direction_text}',
             transform=ax.transAxes, fontsize=9,
             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
@@ -169,6 +203,7 @@ print("[OK] Violin plots saved to: violinplots_by_class.png")
 # Calculate separation metrics for all features
 print("\n" + "-" * 80)
 print("SEPARATION METRICS (Higher = Better Separation)")
+print("Direction: Malware↑ = higher in malware, Benign↑ = higher in benign")
 print("-" * 80)
 
 separation_metrics = []
@@ -178,11 +213,16 @@ for feature in features_to_plot:
     
     benign_median = benign_data.median() # type: ignore
     malicious_median = malicious_data.median() # type: ignore
-    median_diff = abs(malicious_median - benign_median)
+    median_diff = malicious_median - benign_median  # Keep sign for direction
+    median_diff_abs = abs(median_diff)
     
-    # Effect size (Cohen's d approximation)
+    # Effect size (Cohen's d approximation) - keep sign for direction
     pooled_std = np.sqrt((benign_data.std()**2 + malicious_data.std()**2) / 2)
     cohens_d = median_diff / (pooled_std + 1e-10)
+    cohens_d_abs = abs(cohens_d)
+    
+    # Direction indicator: positive = higher in malware, negative = higher in benign
+    direction = "Malware↑" if median_diff > 0 else "Benign↑" if median_diff < 0 else "Equal"
     
     # Mann-Whitney U test statistic (normalized)
     from scipy.stats import mannwhitneyu
@@ -190,8 +230,11 @@ for feature in features_to_plot:
         stat, p_value = mannwhitneyu(benign_data, malicious_data, alternative='two-sided')
         separation_metrics.append({
             'Feature': feature,
-            'Median_Diff': median_diff,
-            'Cohens_D': cohens_d,
+            'Median_Diff': median_diff_abs,
+            'Median_Diff_Signed': median_diff,
+            'Direction': direction,
+            'Cohens_D': cohens_d_abs,
+            'Cohens_D_Signed': cohens_d,
             'Mann_Whitney_p': p_value,
             'Benign_Median': benign_median,
             'Malicious_Median': malicious_median
@@ -199,8 +242,11 @@ for feature in features_to_plot:
     except:
         separation_metrics.append({
             'Feature': feature,
-            'Median_Diff': median_diff,
-            'Cohens_D': cohens_d,
+            'Median_Diff': median_diff_abs,
+            'Median_Diff_Signed': median_diff,
+            'Direction': direction,
+            'Cohens_D': cohens_d_abs,
+            'Cohens_D_Signed': cohens_d,
             'Mann_Whitney_p': np.nan,
             'Benign_Median': benign_median,
             'Malicious_Median': malicious_median
@@ -208,7 +254,12 @@ for feature in features_to_plot:
 
 separation_df = pd.DataFrame(separation_metrics)
 separation_df = separation_df.sort_values('Cohens_D', ascending=False)
-print(separation_df.to_string(index=False))
+
+# Display with direction information
+display_cols = ['Feature', 'Cohens_D', 'Direction', 'Median_Diff', 'Mann_Whitney_p', 
+                'Benign_Median', 'Malicious_Median']
+available_cols = [col for col in display_cols if col in separation_df.columns]
+print(separation_df[available_cols].to_string(index=False))
 
 # ============================================================================
 # 2. MULTICOLLINEARITY AND REDUNDANCY CHECK (MULTIVARIATE)
@@ -235,8 +286,15 @@ print("\n[OK] Correlation heatmap saved to: correlation_heatmap.png")
 print("\n" + "-" * 80)
 print("CORRELATION WITH TARGET VARIABLE (class)")
 print("-" * 80)
+print("(Positive r = higher values indicate malware, Negative r = higher values indicate benign)")
 target_correlations = correlation_matrix['class'].drop('class').sort_values(key=abs, ascending=False) # type: ignore
-print(target_correlations.to_string())
+
+# Create formatted output with direction
+target_corr_formatted = []
+for feature, corr_val in target_correlations.items(): # type: ignore
+    direction = "→ Malware" if corr_val > 0 else "→ Benign" if corr_val < 0 else "→ None"
+    target_corr_formatted.append(f"{feature:25s} {corr_val:7.3f}  {direction}")
+print("\n".join(target_corr_formatted))
 
 # Find highly correlated feature pairs (excluding class)
 print("\n" + "-" * 80)
@@ -308,16 +366,24 @@ report_lines.append("\n" + "=" * 80)
 report_lines.append("EDA SUMMARY REPORT")
 report_lines.append("=" * 80)
 
+if zero_variance_features:
+    report_lines.append("\n0. ZERO VARIANCE FEATURES (MUST BE DROPPED):")
+    for feat in zero_variance_features:
+        report_lines.append(f"   [DROP] {feat} (no variation in data)")
+
 report_lines.append("\n1. MOST PREDICTIVE FEATURES (Top 5 by Cohen's D):")
 top_features = separation_df.head(5)
 for idx, row in top_features.iterrows():
-    report_lines.append(f"   - {row['Feature']}: Cohen's D = {row['Cohens_D']:.3f}, "
+    direction = row.get('Direction', 'Unknown')
+    report_lines.append(f"   - {row['Feature']}: Cohen's D = {row['Cohens_D']:.3f} ({direction}), "
                        f"p-value = {row['Mann_Whitney_p']:.2e}")
 
 report_lines.append("\n2. FEATURES HIGHLY CORRELATED WITH TARGET (|r| > 0.3):")
+report_lines.append("   (Positive r = higher values indicate malware, Negative r = higher values indicate benign)")
 high_target_corr = target_correlations[abs(target_correlations) > 0.3]
 for feature, corr in high_target_corr.items(): # type: ignore
-    report_lines.append(f"   - {feature}: r = {corr:.3f}")
+    direction = "→ Malware" if corr > 0 else "→ Benign"
+    report_lines.append(f"   - {feature}: r = {corr:.3f} {direction}")
 
 report_lines.append("\n3. REDUNDANT FEATURES (High inter-feature correlation):")
 if high_corr_pairs:
@@ -333,20 +399,17 @@ if high_corr_pairs:
 else:
     report_lines.append("   - No highly redundant features found (|r| > 0.95)")
 
-report_lines.append("\n4. FEATURE ENGINEERING RECOMMENDATIONS:")
-# Calculate keyword sum
-df['keyword_sum'] = df[['keyword_JS', 'keyword_JavaScript', 'keyword_AA', 
-                        'keyword_OpenAction', 'keyword_Launch', 'keyword_EmbeddedFile',
-                        'keyword_URI', 'keyword_ObjStm']].sum(axis=1)
-
-# Check correlation of engineered features
-keyword_sum_corr = df['keyword_sum'].corr(df['class']) # type: ignore
-report_lines.append(f"   - keyword_sum: r with target = {keyword_sum_corr:.3f}")
-
-# Keyword density (keywords per file size)
-df['keyword_density'] = df['keyword_sum'] / (df['file_size'] + 1)  # +1 to avoid division by zero
-keyword_density_corr = df['keyword_density'].corr(df['class']) # type: ignore
-report_lines.append(f"   - keyword_density (keyword_sum/file_size): r with target = {keyword_density_corr:.3f}")
+report_lines.append("\n4. ENGINEERED FEATURES PERFORMANCE:")
+# Check correlation of engineered features (already created above)
+if 'keyword_sum' in df.columns:
+    keyword_sum_corr = df['keyword_sum'].corr(df['class']) # type: ignore
+    report_lines.append(f"   - keyword_sum: r with target = {keyword_sum_corr:.3f}")
+if 'keyword_density' in df.columns:
+    keyword_density_corr = df['keyword_density'].corr(df['class']) # type: ignore
+    report_lines.append(f"   - keyword_density: r with target = {keyword_density_corr:.3f}")
+if 'entropy_density' in df.columns:
+    entropy_density_corr = df['entropy_density'].corr(df['class']) # type: ignore
+    report_lines.append(f"   - entropy_density: r with target = {entropy_density_corr:.3f}")
 
 report_lines.append("\n5. FINAL FEATURE RECOMMENDATIONS:")
 report_lines.append("\n   PRIORITY 1 (Must Include - High Predictive Power):")
