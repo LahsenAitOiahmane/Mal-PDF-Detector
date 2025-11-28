@@ -28,6 +28,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, 
     roc_auc_score, confusion_matrix, roc_curve, auc, classification_report
@@ -73,8 +74,10 @@ print(f"    Features ({X.shape[1]}): {list(X.columns)}")
 # --- A. Balanced Dataset Check ---
 print("\n[A] Checking Dataset Balance...")
 class_counts = y.value_counts().sort_index()
-benign_count = class_counts.get(0, 0)
-malicious_count = class_counts.get(1, 0)
+
+# Safely extract counts, handling None values
+benign_count = int(class_counts.get(0, 0) or 0)
+malicious_count = int(class_counts.get(1, 0) or 0)
 
 print(f"    Benign samples: {benign_count}")
 print(f"    Malicious samples: {malicious_count}")
@@ -84,9 +87,8 @@ if benign_count < MIN_SAMPLES_PER_CLASS or malicious_count < MIN_SAMPLES_PER_CLA
     print(f"\n    [WARNING] Dataset may be imbalanced for training!")
     print(f"    Recommended: At least {MIN_SAMPLES_PER_CLASS}+ samples per class")
     print(f"    Current: Benign={benign_count}, Malicious={malicious_count}")
-    if benign_count < MIN_SAMPLES_PER_CLASS or malicious_count < MIN_SAMPLES_PER_CLASS:
-        print(f"    [ERROR] Insufficient samples. Training may be biased.")
-        print(f"    Consider collecting more data or using class balancing techniques.")
+    print(f"    [ERROR] Insufficient samples. Training may be biased.")
+    print(f"    Consider collecting more data or using class balancing techniques.")
 else:
     print(f"    [OK] Dataset has sufficient samples per class (>= {MIN_SAMPLES_PER_CLASS})")
 
@@ -157,11 +159,25 @@ param_xgb = {
     'clf__colsample_bytree': [0.8, 1.0]
 }
 
+# E. Neural Network (Advanced)
+pipe_nn = Pipeline([
+    ('scaler', StandardScaler()),
+    ('clf', MLPClassifier(random_state=RANDOM_SEED, max_iter=500))
+])
+param_nn = {
+    'clf__hidden_layer_sizes': [(50,), (100,), (50, 50), (100, 50)],
+    'clf__activation': ['relu', 'tanh'],
+    'clf__alpha': [0.0001, 0.001, 0.01],  # L2 regularization
+    'clf__learning_rate': ['constant', 'adaptive'],
+    'clf__learning_rate_init': [0.001, 0.01]
+}
+
 models_to_train = [
     ('Logistic Regression', pipe_lr, {}), # No tuning for baseline
     ('SVM', pipe_svm, param_svm),
     ('Random Forest', pipe_rf, param_rf),
-    ('XGBoost', pipe_xgb, param_xgb)
+    ('XGBoost', pipe_xgb, param_xgb),
+    ('Neural Network', pipe_nn, param_nn)
 ]
 
 # --- 4. Training Loop with Cross-Validation ---
@@ -310,7 +326,7 @@ try:
         plt.savefig(images_dir / 'shap_feature_importance.png')
         print("    Saved SHAP feature importance to 'shap_feature_importance.png'")
     else:
-        # For non-tree models, use KernelExplainer (slower but works)
+        # For non-tree models (Logistic Regression, SVM, Neural Network), use KernelExplainer
         print(f"    Using KernelExplainer for {best_model_name} (this may take longer)...")
         preprocessor = best_pipeline.named_steps['scaler']
         X_test_transformed = preprocessor.transform(X_test)
