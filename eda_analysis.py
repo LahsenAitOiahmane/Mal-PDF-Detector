@@ -21,6 +21,19 @@ script_dir = Path(__file__).parent
 csv_path = script_dir / 'pdf_features.csv'
 df = pd.read_csv(csv_path)
 
+# Create organized directory structure for results
+results_dir = script_dir / 'results'
+images_dir = results_dir / 'images'
+csv_dir = results_dir / 'csv'
+reports_dir = results_dir / 'reports'
+
+# Create directories if they don't exist
+images_dir.mkdir(parents=True, exist_ok=True)
+csv_dir.mkdir(parents=True, exist_ok=True)
+reports_dir.mkdir(parents=True, exist_ok=True)
+
+print(f"[OK] Results directories created: {results_dir}")
+
 print("=" * 80)
 print("EXPLORATORY DATA ANALYSIS - PDF FEATURES DATASET")
 print("=" * 80)
@@ -90,7 +103,7 @@ numerical_features = [
 ]
 
 # Ensure pdf_version is numeric (sometimes it reads as string '1.4')
-df['pdf_version'] = pd.to_numeric(df['pdf_version'], errors='coerce').fillna(0)
+df['pdf_version'] = pd.to_numeric(df['pdf_version'], errors='coerce').fillna(0) # type: ignore
 
 # Basic statistics
 print("\n" + "=" * 80)
@@ -156,8 +169,8 @@ for idx in range(n_features, len(axes)):
 
 plt.suptitle('Box Plots: Feature Distributions by Class', fontsize=16, fontweight='bold', y=1.02)
 plt.tight_layout()
-plt.savefig(script_dir / 'boxplots_by_class.png', dpi=300, bbox_inches='tight')
-print("\n[OK] Box plots saved to: boxplots_by_class.png")
+plt.savefig(images_dir / 'boxplots_by_class.png', dpi=300, bbox_inches='tight')
+print(f"\n[OK] Box plots saved to: {images_dir / 'boxplots_by_class.png'}")
 
 # Create violin plots for key features (entropy and keyword counts)
 key_features = ['entropy', 'keyword_density', 'entropy_density', 'keyword_JS', 'keyword_JavaScript', 'keyword_AA', 
@@ -197,8 +210,8 @@ for idx in range(n_key, len(axes)):
 
 plt.suptitle('Violin Plots: Key Feature Distributions by Class', fontsize=16, fontweight='bold', y=1.02)
 plt.tight_layout()
-plt.savefig(script_dir / 'violinplots_by_class.png', dpi=300, bbox_inches='tight')
-print("[OK] Violin plots saved to: violinplots_by_class.png")
+plt.savefig(images_dir / 'violinplots_by_class.png', dpi=300, bbox_inches='tight')
+print(f"[OK] Violin plots saved to: {images_dir / 'violinplots_by_class.png'}")
 
 # Calculate separation metrics for all features
 print("\n" + "-" * 80)
@@ -279,8 +292,8 @@ sns.heatmap(correlation_matrix, annot=True, fmt='.3f', cmap='coolwarm',
             mask=mask, vmin=-1, vmax=1)
 plt.title('Correlation Heatmap: All Numerical Features', fontsize=16, fontweight='bold', pad=20)
 plt.tight_layout()
-plt.savefig(script_dir / 'correlation_heatmap.png', dpi=300, bbox_inches='tight')
-print("\n[OK] Correlation heatmap saved to: correlation_heatmap.png")
+plt.savefig(images_dir / 'correlation_heatmap.png', dpi=300, bbox_inches='tight')
+print(f"\n[OK] Correlation heatmap saved to: {images_dir / 'correlation_heatmap.png'}")
 
 # Analyze correlations with target variable
 print("\n" + "-" * 80)
@@ -445,15 +458,15 @@ except UnicodeEncodeError:
     safe_report = report_text.encode('ascii', 'ignore').decode('ascii')
     print(safe_report)
 
-with open(script_dir / 'eda_summary_report.txt', 'w', encoding='utf-8') as f:
+with open(reports_dir / 'eda_summary_report.txt', 'w', encoding='utf-8') as f:
     f.write(report_text)
 
-print(f"\n[OK] Summary report saved to: eda_summary_report.txt")
+print(f"\n[OK] Summary report saved to: {reports_dir / 'eda_summary_report.txt'}")
 
 # Save engineered features to CSV for potential use
 df_engineered = df.copy()
-df_engineered.to_csv(script_dir / 'pdf_features_with_engineered.csv', index=False)
-print("[OK] Dataset with engineered features saved to: pdf_features_with_engineered.csv")
+df_engineered.to_csv(csv_dir / 'pdf_features_with_engineered.csv', index=False)
+print(f"[OK] Dataset with engineered features saved to: {csv_dir / 'pdf_features_with_engineered.csv'}")
 
 print("\n" + "=" * 80)
 print("EDA ANALYSIS COMPLETE!")

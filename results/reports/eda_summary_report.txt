@@ -1,3 +1,4 @@
+[OK] Results directories created: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results
 ================================================================================
 EXPLORATORY DATA ANALYSIS - PDF FEATURES DATASET
 ================================================================================
@@ -44,8 +45,8 @@ max    2.381658e+07      16.985892      2.400000      7.999862  ...             
 1. FEATURE PREDICTIVE POWER ANALYSIS (BIVARIATE)
 ================================================================================
 
-[OK] Box plots saved to: boxplots_by_class.png
-[OK] Violin plots saved to: violinplots_by_class.png
+[OK] Box plots saved to: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results\images\boxplots_by_class.png
+[OK] Violin plots saved to: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results\images\violinplots_by_class.png
 
 --------------------------------------------------------------------------------
 SEPARATION METRICS (Higher = Better Separation)
@@ -72,7 +73,7 @@ keyword_EmbeddedFile  0.000000     Equal     0.000000    9.856999e-05       0.00
 2. MULTICOLLINEARITY AND REDUNDANCY CHECK (MULTIVARIATE)
 ================================================================================
 
-[OK] Correlation heatmap saved to: correlation_heatmap.png
+[OK] Correlation heatmap saved to: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results\images\correlation_heatmap.png        
 
 --------------------------------------------------------------------------------
 CORRELATION WITH TARGET VARIABLE (class)
@@ -170,8 +171,8 @@ EDA SUMMARY REPORT
       [EXCLUDE] keyword_URI (Cohen's D = 0.000)
       [EXCLUDE] keyword_ObjStm (Cohen's D = 0.000)
 
-[OK] Summary report saved to: eda_summary_report.txt
-[OK] Dataset with engineered features saved to: pdf_features_with_engineered.csv
+[OK] Summary report saved to: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results\reports\eda_summary_report.txt
+[OK] Dataset with engineered features saved to: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results\csv\pdf_features_with_engineered.csv
 
 ================================================================================
 EDA ANALYSIS COMPLETE!
