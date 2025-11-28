@@ -32,7 +32,7 @@ This document provides comprehensive feature recommendations based on Explorator
 | keyword_JavaScript | 0.276 | Malware↑ | 0.155 | Medium Effect | ⭐⭐⭐ |
 | file_size | 0.243 | Benign↑ | -0.131 | Medium Effect | ⭐⭐⭐ |
 | entropy | 0.135 | Malware↑ | -0.113 | Small Effect | ⭐⭐ |
-| keyword_ObjStm | 0.000 | Equal | -0.238 | **Hidden Gem** ⭐ | 🔍 |
+| keyword_ObjStm | 0.000 | Equal | -0.238 | **Hidden Gem** | ⭐🔍 |
 | keyword_density | 0.041 | Malware↑ | -0.009 | Negligible | ❌ |
 | keyword_sum | 0.023 | Malware↑ | -0.011 | Negligible | ❌ |
 | keyword_AA | 0.000 | Equal | -0.051 | No Effect | ❌ |
