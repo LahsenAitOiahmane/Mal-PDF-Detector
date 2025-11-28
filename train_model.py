@@ -18,8 +18,10 @@ import seaborn as sns
 import xgboost as xgb
 import shap
 import joblib
+import json
 from pathlib import Path
 from time import time
+from datetime import datetime
 
 # Scikit-Learn Imports
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
@@ -29,6 +31,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.inspection import permutation_importance
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, 
     roc_auc_score, confusion_matrix, roc_curve, auc, classification_report
@@ -82,15 +86,20 @@ malicious_count = int(class_counts.get(1, 0) or 0)
 print(f"    Benign samples: {benign_count}")
 print(f"    Malicious samples: {malicious_count}")
 
-MIN_SAMPLES_PER_CLASS = 1000
-if benign_count < MIN_SAMPLES_PER_CLASS or malicious_count < MIN_SAMPLES_PER_CLASS:
-    print(f"\n    [WARNING] Dataset may be imbalanced for training!")
-    print(f"    Recommended: At least {MIN_SAMPLES_PER_CLASS}+ samples per class")
-    print(f"    Current: Benign={benign_count}, Malicious={malicious_count}")
-    print(f"    [ERROR] Insufficient samples. Training may be biased.")
-    print(f"    Consider collecting more data or using class balancing techniques.")
+# Check imbalance ratio instead of hard-coded threshold
+if benign_count > 0 and malicious_count > 0:
+    imbalance_ratio = max(benign_count, malicious_count) / min(benign_count, malicious_count)
+    print(f"    Imbalance ratio: {imbalance_ratio:.2f}:1")
+    
+    if imbalance_ratio > 3.0:
+        print(f"\n    [WARNING] Significant class imbalance detected (ratio > 3:1)")
+        print(f"    Consider using class weights or balanced sampling techniques.")
+        print(f"    Current ratio: {imbalance_ratio:.2f}:1")
+    else:
+        print(f"    [OK] Dataset is reasonably balanced (ratio <= 3:1)")
 else:
-    print(f"    [OK] Dataset has sufficient samples per class (>= {MIN_SAMPLES_PER_CLASS})")
+    print(f"    [ERROR] One or both classes have zero samples!")
+    raise ValueError("Dataset must contain samples from both classes")
 
 # --- 2. Professional Data Splitting (70% Train / 15% Val / 15% Test) ---
 print("\n[2] Splitting Data (70% Train / 15% Validation / 15% Test)...")
