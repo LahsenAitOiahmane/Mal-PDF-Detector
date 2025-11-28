@@ -122,6 +122,8 @@ pipe_lr = Pipeline([
 ])
 
 # B. SVM (Baseline - Simple)
+# Note: probability=True enables predict_proba() but significantly increases training time
+# This is necessary for ROC-AUC calculation
 pipe_svm = Pipeline([
     ('scaler', StandardScaler()),
     ('clf', SVC(probability=True, random_state=RANDOM_SEED))
@@ -160,12 +162,15 @@ param_xgb = {
 }
 
 # E. Neural Network (Advanced)
+# Note: max_iter=1000 ensures convergence for most datasets
+# early_stopping=True helps prevent overfitting and speeds up training
 pipe_nn = Pipeline([
     ('scaler', StandardScaler()),
-    ('clf', MLPClassifier(random_state=RANDOM_SEED, max_iter=500))
+    ('clf', MLPClassifier(random_state=RANDOM_SEED, max_iter=1000, early_stopping=True, 
+                         validation_fraction=0.1, n_iter_no_change=10))
 ])
 param_nn = {
-    'clf__hidden_layer_sizes': [(50,), (100,), (50, 50), (100, 50)],
+    'clf__hidden_layer_sizes': [(50,), (100,), (50, 50), (100, 50)],  # Correct syntax for scikit-learn
     'clf__activation': ['relu', 'tanh'],
     'clf__alpha': [0.0001, 0.001, 0.01],  # L2 regularization
     'clf__learning_rate': ['constant', 'adaptive'],
@@ -190,6 +195,8 @@ cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_SEED)
 
 for name, pipeline, params in models_to_train:
     print(f"\n    Training {name}...")
+    if name == 'SVM':
+        print("      [Note] SVM with probability=True may take longer to train...")
     start = time()
     
     if params:
@@ -327,20 +334,25 @@ try:
         print("    Saved SHAP feature importance to 'shap_feature_importance.png'")
     else:
         # For non-tree models (Logistic Regression, SVM, Neural Network), use KernelExplainer
+        # Note: KernelExplainer is slow, so we limit sample sizes to prevent hanging
         print(f"    Using KernelExplainer for {best_model_name} (this may take longer)...")
+        print("    [Note] Using limited sample size (100 background, 50 explanations) for speed")
         preprocessor = best_pipeline.named_steps['scaler']
         X_test_transformed = preprocessor.transform(X_test)
         X_test_df = pd.DataFrame(X_test_transformed, columns=X.columns)
         
-        # Use a sample for faster computation
-        sample_size = min(100, len(X_test_df))
-        X_sample = X_test_df.sample(n=sample_size, random_state=RANDOM_SEED)
+        # Use a sample for faster computation (prevents hours of computation)
+        background_size = min(100, len(X_test_df))  # Background samples for KernelExplainer
+        explanation_size = min(50, len(X_test_df))  # Samples to explain
         
-        explainer = shap.KernelExplainer(best_pipeline.predict_proba, X_sample)
-        shap_values = explainer.shap_values(X_sample.iloc[:50])  # Limit for speed
+        X_background = X_test_df.sample(n=background_size, random_state=RANDOM_SEED)
+        X_explain = X_test_df.sample(n=explanation_size, random_state=RANDOM_SEED + 1)
+        
+        explainer = shap.KernelExplainer(best_pipeline.predict_proba, X_background)
+        shap_values = explainer.shap_values(X_explain)  # Limit for speed
         
         plt.figure(figsize=(10, 8))
-        shap.summary_plot(shap_values[1], X_sample.iloc[:50], show=False)  # Class 1 (malware)
+        shap.summary_plot(shap_values[1], X_explain, show=False)  # Class 1 (malware)
         plt.tight_layout()
         plt.savefig(images_dir / 'shap_summary_plot.png')
         print("    Saved SHAP summary plot to 'shap_summary_plot.png'")
