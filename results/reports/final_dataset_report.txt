@@ -1,0 +1,38 @@
+================================================================================
+CREATING FINAL OPTIMIZED DATASET
+================================================================================
+
+Original dataset shape: (23910, 13)
+
+[1] Engineering features based on EDA analysis...
+   log_file_size correlation with target: -0.649
+   entropy_density correlation with target: 0.312
+   pdf_version correlation with target: -0.289
+
+[2] Selecting final feature set based on EDA findings...
+    Priority 1: keyword_OpenAction, log_file_size, entropy_density, pdf_version
+    Priority 2: keyword_JavaScript, entropy
+    Recovered: keyword_ObjStm (Missed by Cohen's D, but r = -0.238)
+   [OK] No infinity values detected
+
+Final dataset shape: (23910, 9)
+Features included: 7 features + file_name + class
+
+Feature correlations with target:
+  - keyword_OpenAction        (r =   0.595 → Malware)
+  - log_file_size             (r =  -0.649 → Benign)
+  - entropy_density           (r =   0.312 → Malware)
+  - pdf_version               (r =  -0.289 → Benign)
+  - keyword_JavaScript        (r =   0.155 → Malware)
+  - entropy                   (r =  -0.113 → Benign)
+  - entropy                   (r =  -0.113 → Benign)
+  - keyword_ObjStm            (r =  -0.238 → Benign)
+
+[OK] Final optimized dataset saved to: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results\csv\pdf_features_final.csv        
+
+[3] Creating minimal feature set (Priority 1 only - 4 features)...
+[OK] Minimal feature set saved to: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results\csv\pdf_features_minimal.csv
+
+================================================================================
+DATASET PREPARATION COMPLETE!
+================================================================================

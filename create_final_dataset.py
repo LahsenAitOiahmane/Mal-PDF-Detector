@@ -69,6 +69,14 @@ df_final = df[final_features].copy()
 # Fill any NaN values created during engineering (safety check)
 df_final = df_final.fillna(0)
 
+# Replace infinity values (can occur from division operations) - safety check for model training
+inf_count = np.isinf(df_final.select_dtypes(include=[np.number])).sum().sum()
+if inf_count > 0:
+    print(f"   [WARNING] Found {inf_count} infinity values - replacing with 0")
+    df_final = df_final.replace([np.inf, -np.inf], 0)
+else:
+    print("   [OK] No infinity values detected")
+
 print(f"\nFinal dataset shape: {df_final.shape}")
 print(f"Features included: {len(final_features) - 2} features + file_name + class")
 print(f"\nFeature correlations with target:")
@@ -95,6 +103,13 @@ minimal_features = [
 ]
 
 df_minimal = df[minimal_features].copy()
+
+# Safety check: Replace NaN and infinity values
+df_minimal = df_minimal.fillna(0)
+inf_count_minimal = np.isinf(df_minimal.select_dtypes(include=[np.number])).sum().sum()
+if inf_count_minimal > 0:
+    df_minimal = df_minimal.replace([np.inf, -np.inf], 0)
+
 output_path_minimal = csv_dir / 'pdf_features_minimal.csv'
 df_minimal.to_csv(output_path_minimal, index=False)
 print(f"[OK] Minimal feature set saved to: {output_path_minimal}")
