@@ -441,10 +441,15 @@ for name, model in best_models.items():
         random_state=RANDOM_SEED, n_jobs=-1, scoring='f1'
     )
     
-    # Access Bunch object attributes using dictionary-style access for type safety
+    # Access Bunch object attributes - use getattr for type safety
+    # permutation_importance returns a Bunch (dict-like) object that supports both dict and attr access
+    # permutation_importance returns a Bunch object (supports both dict and attr access)
+    importances_mean = perm_importance.importances_mean  # type: ignore
+    importances_std = perm_importance.importances_std  # type: ignore
+    
     feature_importance_results[name] = {
-        'importances_mean': perm_importance['importances_mean'],
-        'importances_std': perm_importance['importances_std'],
+        'importances_mean': importances_mean,
+        'importances_std': importances_std,
         'features': list(X.columns)
     }
 
@@ -476,8 +481,18 @@ try:
     if best_model_name in ['XGBoost', 'Random Forest']:
         # Tree models: Use SHAP with RAW features (not scaled)
         print(f"    Using SHAP TreeExplainer for {best_model_name} (raw features)...")
-        model_step = 'clf'
-        raw_model = best_pipeline.named_steps[model_step]
+        # Get the base estimator from CalibratedClassifierCV (best_pipeline is calibrated)
+        if isinstance(best_pipeline, CalibratedClassifierCV):
+            base_estimator = best_pipeline.base_estimator  # type: ignore
+            if hasattr(base_estimator, 'named_steps'):
+                model_step = 'clf'
+                raw_model = base_estimator.named_steps[model_step]  # type: ignore
+            else:
+                raw_model = base_estimator
+        else:
+            # If not calibrated, access directly
+            model_step = 'clf'
+            raw_model = best_pipeline.named_steps[model_step]  # type: ignore
         
         # Use RAW features - tree models don't need scaling
         explainer = shap.TreeExplainer(raw_model)
