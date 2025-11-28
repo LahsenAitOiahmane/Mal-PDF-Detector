@@ -103,6 +103,8 @@ else:
 
 # --- 2. Professional Data Splitting (70% Train / 15% Val / 15% Test) ---
 print("\n[2] Splitting Data (70% Train / 15% Validation / 15% Test)...")
+print("    Note: Validation set is used for model selection check, not hyperparameter tuning.")
+print("    Hyperparameter tuning uses Cross-Validation on training set only.")
 
 # First, split off the 15% Test Set (Strictly Unseen)
 X_temp, X_test, y_temp, y_test = train_test_split(
@@ -144,8 +146,8 @@ param_svm = {
 }
 
 # C. Random Forest (Baseline - Simple)
+# Note: Tree models are scale-invariant - scaling is NOT needed and hurts performance
 pipe_rf = Pipeline([
-    ('scaler', StandardScaler()), # RF doesn't strictly need scaling, but it helps SHAP/consistency
     ('clf', RandomForestClassifier(random_state=RANDOM_SEED))
 ])
 param_rf = {
@@ -156,18 +158,22 @@ param_rf = {
 }
 
 # D. XGBoost (Advanced)
+# Note: Tree models are scale-invariant - scaling is NOT needed and hurts performance
 pipe_xgb = Pipeline([
-    ('scaler', StandardScaler()),
     ('clf', xgb.XGBClassifier(
         eval_metric='logloss', use_label_encoder=False, random_state=RANDOM_SEED
     ))
 ])
+
+# Calculate scale_pos_weight for class imbalance (if malicious is minority)
+scale_pos_weight = benign_count / malicious_count if malicious_count < benign_count else 1.0
 param_xgb = {
     'clf__n_estimators': [100, 200, 300],
     'clf__learning_rate': [0.01, 0.1, 0.2],
     'clf__max_depth': [3, 6, 10],
     'clf__subsample': [0.8, 1.0],
-    'clf__colsample_bytree': [0.8, 1.0]
+    'clf__colsample_bytree': [0.8, 1.0],
+    'clf__scale_pos_weight': [1.0, scale_pos_weight]  # Handle class imbalance
 }
 
 # E. Neural Network (Advanced)
@@ -209,7 +215,8 @@ for name, pipeline, params in models_to_train:
     start = time()
     
     if params:
-        # Use Randomized Search for tuning (uses CV on training set)
+        # Use Randomized Search for tuning (uses CV on training set only)
+        # Note: Validation set is NOT used here - it's reserved for model selection check
         search = RandomizedSearchCV(
             pipeline, params, n_iter=10, scoring=SCORING_METRIC, 
             cv=cv, n_jobs=-1, random_state=RANDOM_SEED, verbose=0
@@ -292,84 +299,254 @@ metrics_df.to_csv(reports_dir / 'final_model_metrics.csv', index=False)
 print("\n--- Final Test Set Metrics ---")
 print(metrics_df.round(4).to_string(index=False))
 
-# --- 6. Explainability (SHAP) for the Best Model ---
-print("\n[6] Generating SHAP Explanations...")
+# --- 6. Identify Best Model ---
+print("\n[6] Identifying Best Model...")
 
 # Identify best model based on F1
 best_model_name = metrics_df.sort_values('F1_Score', ascending=False).iloc[0]['Model']
 print(f"    Best Model identified: {best_model_name}")
 best_pipeline = best_models[best_model_name]
 
-# Save Best Pipeline
-joblib.dump(best_pipeline, models_dir / 'best_model_pipeline.pkl')
-print(f"    Saved pipeline to 'best_model_pipeline.pkl'")
+# --- 7. Model Calibration ---
+print("\n[7] Calibrating Best Model Probabilities...")
+# Calibrate probabilities for better threshold optimization
+best_pipeline = CalibratedClassifierCV(best_pipeline, cv=5, method='sigmoid')
+best_pipeline.fit(X_train, y_train)
+print("    Model calibrated using Platt scaling (sigmoid)")
 
-# Generate Confusion Matrix for Best Model
-y_pred_best = best_pipeline.predict(X_test)
-cm = confusion_matrix(y_test, y_pred_best)
+# --- 8. Threshold Optimization ---
+print("\n[8] Optimizing Classification Threshold on Validation Set...")
+# Get calibrated probabilities on validation set
+y_val_proba_calibrated = best_pipeline.predict_proba(X_val)[:, 1]
+
+# Test thresholds from 0.1 to 0.9
+thresholds = np.linspace(0.1, 0.9, 81)
+best_threshold = 0.5
+best_f1 = 0
+threshold_scores = []
+
+for t in thresholds:
+    y_pred_t = (y_val_proba_calibrated >= t).astype(int)
+    score = f1_score(y_val, y_pred_t)
+    threshold_scores.append({'threshold': t, 'f1_score': score})
+    if score > best_f1:
+        best_f1 = score
+        best_threshold = t
+
+print(f"    Optimal threshold: {best_threshold:.3f} (F1: {best_f1:.4f})")
+print(f"    Default threshold (0.5) F1: {f1_score(y_val, (y_val_proba_calibrated >= 0.5).astype(int)):.4f}")
+
+# Plot threshold optimization curve
+threshold_df = pd.DataFrame(threshold_scores)
+plt.figure(figsize=(8, 6))
+plt.plot(threshold_df['threshold'], threshold_df['f1_score'])
+plt.axvline(best_threshold, color='r', linestyle='--', label=f'Optimal: {best_threshold:.3f}')
+plt.xlabel('Threshold')
+plt.ylabel('F1 Score')
+plt.title('Threshold Optimization on Validation Set')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.savefig(images_dir / 'threshold_optimization.png')
+print("    Saved threshold optimization curve to 'threshold_optimization.png'")
+
+# Re-evaluate test set with optimal threshold
+y_test_proba_calibrated = best_pipeline.predict_proba(X_test)[:, 1]
+y_test_pred_optimal = (y_test_proba_calibrated >= best_threshold).astype(int)
+
+# Update best model metrics with optimal threshold
+optimal_acc = accuracy_score(y_test, y_test_pred_optimal)
+optimal_prec = precision_score(y_test, y_test_pred_optimal)
+optimal_rec = recall_score(y_test, y_test_pred_optimal)
+optimal_f1 = f1_score(y_test, y_test_pred_optimal)
+optimal_auc = roc_auc_score(y_test, y_test_proba_calibrated)
+
+print(f"\n    Test Set Metrics with Optimal Threshold ({best_threshold:.3f}):")
+print(f"      Accuracy: {optimal_acc:.4f}")
+print(f"      Precision: {optimal_prec:.4f}")
+print(f"      Recall: {optimal_rec:.4f}")
+print(f"      F1-Score: {optimal_f1:.4f}")
+print(f"      AUC: {optimal_auc:.4f}")
+
+# Save Best Pipeline with versioning
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+model_version = f"model_v{timestamp}.pkl"
+joblib.dump(best_pipeline, models_dir / model_version)
+joblib.dump(best_pipeline, models_dir / 'best_model_pipeline.pkl')  # Latest
+print(f"\n    Saved calibrated pipeline to '{model_version}' and 'best_model_pipeline.pkl'")
+
+# --- 9. Generate Confusion Matrices for All Models ---
+print("\n[9] Generating Confusion Matrices for All Models...")
+
+n_models = len(best_models)
+n_cols = 2
+n_rows = (n_models + 1) // 2
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 6 * n_rows))
+if n_models == 1:
+    axes = [axes]
+else:
+    axes = axes.flatten()
+
+for idx, (name, model) in enumerate(best_models.items()):
+    y_pred_model = model.predict(X_test)
+    cm = confusion_matrix(y_test, y_pred_model)
+    
+    ax = axes[idx]
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
+                xticklabels=['Benign', 'Malicious'], 
+                yticklabels=['Benign', 'Malicious'])
+    ax.set_title(f'{name}')
+    ax.set_ylabel('True Label')
+    ax.set_xlabel('Predicted Label')
+
+# Remove extra subplots
+for idx in range(n_models, len(axes)):
+    fig.delaxes(axes[idx])
+
+plt.tight_layout()
+plt.savefig(images_dir / 'confusion_matrices_all_models.png')
+print("    Saved confusion matrices to 'confusion_matrices_all_models.png'")
+
+# Also save best model confusion matrix separately (with optimal threshold)
+y_pred_best_optimal = (best_pipeline.predict_proba(X_test)[:, 1] >= best_threshold).astype(int)
+cm_best = confusion_matrix(y_test, y_pred_best_optimal)
 plt.figure(figsize=(6, 5))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+sns.heatmap(cm_best, annot=True, fmt='d', cmap='Blues', 
             xticklabels=['Benign', 'Malicious'], 
             yticklabels=['Benign', 'Malicious'])
-plt.title(f'Confusion Matrix ({best_model_name})')
-plt.savefig(images_dir / 'confusion_matrix_best.png')
+plt.title(f'Confusion Matrix ({best_model_name}) - Optimal Threshold {best_threshold:.3f}')
+plt.ylabel('True Label')
+plt.xlabel('Predicted Label')
+plt.savefig(images_dir / 'confusion_matrix_best_optimal.png')
+print("    Saved best model confusion matrix (optimal threshold) to 'confusion_matrix_best_optimal.png'")
 
-# Run SHAP (Explainability)
-# Note: TreeExplainer works best on tree-based models
+# --- 10. Feature Importance Analysis (Permutation Importance for All Models) ---
+print("\n[10] Computing Feature Importance (Permutation Importance)...")
+
+feature_importance_results = {}
+for name, model in best_models.items():
+    print(f"    Computing for {name}...")
+    # For tree models, we can use raw features. For scaled models, we need to transform
+    if name in ['Random Forest', 'XGBoost']:
+        X_for_importance = X_test
+    else:
+        # For scaled models, use transformed features
+        if 'scaler' in model.named_steps:
+            X_for_importance = model.named_steps['scaler'].transform(X_test)
+        else:
+            X_for_importance = X_test
+    
+    # Compute permutation importance
+    perm_importance = permutation_importance(
+        model, X_for_importance, y_test, n_repeats=10, 
+        random_state=RANDOM_SEED, n_jobs=-1, scoring='f1'
+    )
+    
+    # Access Bunch object attributes using dictionary-style access for type safety
+    feature_importance_results[name] = {
+        'importances_mean': perm_importance['importances_mean'],
+        'importances_std': perm_importance['importances_std'],
+        'features': list(X.columns)
+    }
+
+# Create feature importance comparison plot
+fig, axes = plt.subplots(len(feature_importance_results), 1, figsize=(10, 4 * len(feature_importance_results)))
+if len(feature_importance_results) == 1:
+    axes = [axes]
+
+for idx, (name, importance_data) in enumerate(feature_importance_results.items()):
+    ax = axes[idx]
+    sorted_idx = np.argsort(importance_data['importances_mean'])[::-1]
+    features_sorted = [importance_data['features'][i] for i in sorted_idx]
+    importances_sorted = importance_data['importances_mean'][sorted_idx]
+    std_sorted = importance_data['importances_std'][sorted_idx]
+    
+    ax.barh(features_sorted, importances_sorted, xerr=std_sorted)
+    ax.set_xlabel('Permutation Importance')
+    ax.set_title(f'Feature Importance - {name}')
+    ax.invert_yaxis()
+
+plt.tight_layout()
+plt.savefig(images_dir / 'feature_importance_comparison.png')
+print("    Saved feature importance comparison to 'feature_importance_comparison.png'")
+
+# --- 11. Explainability (SHAP for Tree Models, Permutation for Others) ---
+print("\n[11] Generating Model Explanations...")
+
 try:
     if best_model_name in ['XGBoost', 'Random Forest']:
+        # Tree models: Use SHAP with RAW features (not scaled)
+        print(f"    Using SHAP TreeExplainer for {best_model_name} (raw features)...")
         model_step = 'clf'
         raw_model = best_pipeline.named_steps[model_step]
         
-        # We need transformed data for SHAP if scaling was used
-        preprocessor = best_pipeline.named_steps['scaler']
-        X_test_transformed = preprocessor.transform(X_test)
-        X_test_df = pd.DataFrame(X_test_transformed, columns=X.columns)
-
+        # Use RAW features - tree models don't need scaling
         explainer = shap.TreeExplainer(raw_model)
-        shap_values = explainer.shap_values(X_test_df)
+        shap_values = explainer.shap_values(X_test)
         
         plt.figure(figsize=(10, 8))
-        shap.summary_plot(shap_values, X_test_df, show=False)
+        shap.summary_plot(shap_values, X_test, show=False)
         plt.tight_layout()
         plt.savefig(images_dir / 'shap_summary_plot.png')
         print("    Saved SHAP summary plot to 'shap_summary_plot.png'")
         
         # Also create feature importance bar plot
         plt.figure(figsize=(8, 6))
-        shap.summary_plot(shap_values, X_test_df, plot_type="bar", show=False)
+        shap.summary_plot(shap_values, X_test, plot_type="bar", show=False)
         plt.tight_layout()
         plt.savefig(images_dir / 'shap_feature_importance.png')
         print("    Saved SHAP feature importance to 'shap_feature_importance.png'")
     else:
-        # For non-tree models (Logistic Regression, SVM, Neural Network), use KernelExplainer
-        # Note: KernelExplainer is slow, so we limit sample sizes to prevent hanging
-        print(f"    Using KernelExplainer for {best_model_name} (this may take longer)...")
-        print("    [Note] Using limited sample size (100 background, 50 explanations) for speed")
-        preprocessor = best_pipeline.named_steps['scaler']
-        X_test_transformed = preprocessor.transform(X_test)
-        X_test_df = pd.DataFrame(X_test_transformed, columns=X.columns)
-        
-        # Use a sample for faster computation (prevents hours of computation)
-        background_size = min(100, len(X_test_df))  # Background samples for KernelExplainer
-        explanation_size = min(50, len(X_test_df))  # Samples to explain
-        
-        X_background = X_test_df.sample(n=background_size, random_state=RANDOM_SEED)
-        X_explain = X_test_df.sample(n=explanation_size, random_state=RANDOM_SEED + 1)
-        
-        explainer = shap.KernelExplainer(best_pipeline.predict_proba, X_background)
-        shap_values = explainer.shap_values(X_explain)  # Limit for speed
-        
-        plt.figure(figsize=(10, 8))
-        shap.summary_plot(shap_values[1], X_explain, show=False)  # Class 1 (malware)
-        plt.tight_layout()
-        plt.savefig(images_dir / 'shap_summary_plot.png')
-        print("    Saved SHAP summary plot to 'shap_summary_plot.png'")
+        # Non-tree models: Use Permutation Importance (already computed above)
+        print(f"    Using Permutation Importance for {best_model_name} (already computed)")
+        print("    See 'feature_importance_comparison.png' for results")
 except Exception as e:
-    print(f"    [Warning] Could not generate SHAP plot: {e}")
+    print(f"    [Warning] Could not generate explanations: {e}")
     import traceback
     traceback.print_exc()
+
+# --- 12. Training Metadata Logging ---
+print("\n[12] Saving Training Metadata...")
+
+training_metadata = {
+    "random_seed": RANDOM_SEED,
+    "train_samples": len(X_train),
+    "validation_samples": len(X_val),
+    "test_samples": len(X_test),
+    "features_used": list(X.columns),
+    "n_features": len(X.columns),
+    "best_model": best_model_name,
+    "best_threshold": float(best_threshold),
+    "optimal_f1_score": float(optimal_f1),
+    "optimal_accuracy": float(optimal_acc),
+    "optimal_precision": float(optimal_prec),
+    "optimal_recall": float(optimal_rec),
+    "optimal_auc": float(optimal_auc),
+    "class_distribution": {
+        "benign": int(benign_count),
+        "malicious": int(malicious_count),
+        "imbalance_ratio": float(imbalance_ratio) if benign_count > 0 and malicious_count > 0 else None
+    },
+    "model_version": model_version,
+    "timestamp": datetime.now().isoformat(),
+    "cv_folds": CV_FOLDS,
+    "scoring_metric": SCORING_METRIC,
+    "all_model_metrics": test_results
+}
+
+metadata_path = reports_dir / 'training_metadata.json'
+with open(metadata_path, 'w') as f:
+    json.dump(training_metadata, f, indent=2, default=str)
+
+print(f"    Saved training metadata to '{metadata_path}'")
 
 print("\n" + "="*80)
 print("TRAINING COMPLETE. PROFESSIONAL ARTIFACTS GENERATED.")
 print("="*80)
+print(f"\nGenerated Artifacts:")
+print(f"  - Models: {model_version}, best_model_pipeline.pkl")
+print(f"  - Metrics: final_model_metrics.csv")
+print(f"  - Metadata: training_metadata.json")
+print(f"  - Visualizations: roc_curve_comparison.png, confusion_matrices_all_models.png")
+print(f"  - Feature Analysis: feature_importance_comparison.png")
+print(f"  - Explanations: shap_summary_plot.png, shap_feature_importance.png (if tree model)")
+print(f"  - Optimization: threshold_optimization.png")
