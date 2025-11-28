@@ -1,0 +1,292 @@
+Loading dataset from: C:\Users\sadik\Documents\GitHub\Mal-PDF-Detector\results\csv\pdf_features_final.csv
+
+[1] Data Preparation...
+    Total Samples: 23910
+    Features (7): ['keyword_OpenAction', 'log_file_size', 'entropy_density', 'pdf_version', 'keyword_JavaScript', 'entropy', 'keyword_ObjStm']
+
+[2] Splitting Data (70% Train / 15% Validation / 15% Test)...
+    Training Data (for CV): 20323 samples
+    Test Data (Hold-out):   3587 samples
+
+[3] Defining Pipelines and Hyperparameter Grids...
+
+[4] Starting Training with 5-Fold Cross-Validation...
+
+    Training Logistic Regression...
+      CV F1: 0.9493 (Time: 0.45s)
+
+    Training Random Forest...
+      Best Params: {'clf__n_estimators': 200, 'clf__min_samples_split': 2, 'clf__max_depth': None, 'clf__class_weight': 'balanced'}
+      CV F1: 0.9910 (Time: 60.57s)
+
+    Training XGBoost...
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:27] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790: 
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:27] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790: 
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:27] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790: 
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:27] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:27] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:27] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:27] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:27] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:28] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:28] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:28] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:28] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:28] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:29] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:29] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:29] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:29] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:30] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:30] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:30] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:30] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:30] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:31] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:31] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:31] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:31] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:31] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:31] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:31] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:32] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:32] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:32] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:32] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:32] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:32] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:32] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:32] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:33] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:34] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:34] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:34] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:34] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:35] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+      Best Params: {'clf__subsample': 0.8, 'clf__n_estimators': 100, 'clf__max_depth': 10, 'clf__learning_rate': 0.1, 'clf__colsample_bytree': 0.8}
+      CV F1: 0.9908 (Time: 8.36s)
+
+[5] Evaluating on Strictly Unseen Test Set...
+    Saved ROC Curve to 'roc_curve_comparison.png'
+
+--- Final Test Set Metrics ---
+              Model  Accuracy  Precision  Recall  F1_Score    AUC
+Logistic Regression    0.9356     0.9399  0.9572    0.9485 0.9626
+      Random Forest    0.9916     0.9950  0.9914    0.9932 0.9997
+            XGBoost    0.9914     0.9964  0.9896    0.9930 0.9994
+  bst.update(dtrain, iteration=i, fobj=obj)
+c:\Users\sadik\AppData\Local\Programs\Python\Python313\Lib\site-packages\xgboost\training.py:199: UserWarning: [11:46:35] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:790:
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+      Best Params: {'clf__subsample': 0.8, 'clf__n_estimators': 100, 'clf__max_depth': 10, 'clf__learning_rate': 0.1, 'clf__colsample_bytree': 0.8}
+      CV F1: 0.9908 (Time: 8.36s)
+
+[5] Evaluating on Strictly Unseen Test Set...
+    Saved ROC Curve to 'roc_curve_comparison.png'
+
+--- Final Test Set Metrics ---
+              Model  Accuracy  Precision  Recall  F1_Score    AUC
+Logistic Regression    0.9356     0.9399  0.9572    0.9485 0.9626
+      Random Forest    0.9916     0.9950  0.9914    0.9932 0.9997
+            XGBoost    0.9914     0.9964  0.9896    0.9930 0.9994
+      Best Params: {'clf__subsample': 0.8, 'clf__n_estimators': 100, 'clf__max_depth': 10, 'clf__learning_rate': 0.1, 'clf__colsample_bytree': 0.8}
+      CV F1: 0.9908 (Time: 8.36s)
+
+[5] Evaluating on Strictly Unseen Test Set...
+    Saved ROC Curve to 'roc_curve_comparison.png'
+
+--- Final Test Set Metrics ---
+              Model  Accuracy  Precision  Recall  F1_Score    AUC
+Logistic Regression    0.9356     0.9399  0.9572    0.9485 0.9626
+      Random Forest    0.9916     0.9950  0.9914    0.9932 0.9997
+            XGBoost    0.9914     0.9964  0.9896    0.9930 0.9994
+[5] Evaluating on Strictly Unseen Test Set...
+    Saved ROC Curve to 'roc_curve_comparison.png'
+
+--- Final Test Set Metrics ---
+              Model  Accuracy  Precision  Recall  F1_Score    AUC
+Logistic Regression    0.9356     0.9399  0.9572    0.9485 0.9626
+      Random Forest    0.9916     0.9950  0.9914    0.9932 0.9997
+            XGBoost    0.9914     0.9964  0.9896    0.9930 0.9994
+--- Final Test Set Metrics ---
+              Model  Accuracy  Precision  Recall  F1_Score    AUC
+Logistic Regression    0.9356     0.9399  0.9572    0.9485 0.9626
+      Random Forest    0.9916     0.9950  0.9914    0.9932 0.9997
+            XGBoost    0.9914     0.9964  0.9896    0.9930 0.9994
+Logistic Regression    0.9356     0.9399  0.9572    0.9485 0.9626
+      Random Forest    0.9916     0.9950  0.9914    0.9932 0.9997
+            XGBoost    0.9914     0.9964  0.9896    0.9930 0.9994
+      Random Forest    0.9916     0.9950  0.9914    0.9932 0.9997
+            XGBoost    0.9914     0.9964  0.9896    0.9930 0.9994
+            XGBoost    0.9914     0.9964  0.9896    0.9930 0.9994
+
+[6] Generating SHAP Explanations...
+    Best Model identified: Random Forest
+    Saved pipeline to 'best_model_pipeline.pkl'
+    Saved SHAP summary plot to 'shap_summary_plot.png'
+
+================================================================================
+TRAINING COMPLETE. PROFESSIONAL ARTIFACTS GENERATED.
+================================================================================
