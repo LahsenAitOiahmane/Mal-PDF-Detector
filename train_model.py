@@ -383,49 +383,28 @@ print(f"    Best Model identified: {best_model_name}")
 # Keep uncalibrated copy for SHAP/feature importance (before calibration)
 uncalibrated_best = best_models[best_model_name]
 
-# --- 7. Final Refit on Train+Val (Use More Data) ---
-print("\n[7] Final Refit on Combined Train+Validation Set...")
-# Combine train and validation for final model (common practice)
-X_train_final = pd.concat([X_train, X_val], axis=0, ignore_index=True)  # type: ignore
-y_train_final = pd.concat([y_train, y_val], axis=0, ignore_index=True)  # type: ignore
-print(f"    Combined training data: {len(X_train_final)} samples")
+# --- 7. Threshold Optimization on Validation Set (Hold-Out) ---
+print("\n[7] Optimizing Classification Threshold on Validation Set (Hold-Out)...")
+best_model_holdout = best_models[best_model_name]
+y_val_proba_holdout = get_proba(best_model_holdout, X_val)
 
-# Refit uncalibrated model on combined data
-uncalibrated_best.fit(X_train_final, y_train_final)
-print("    Uncalibrated model refit on train+val")
-
-# --- 8. Model Calibration ---
-print("\n[8] Calibrating Best Model Probabilities...")
-# Wrap the entire pipeline in CalibratedClassifierCV to ensure preprocessing is respected
-calibrated_clf = CalibratedClassifierCV(uncalibrated_best, cv=5, method='sigmoid', n_jobs=-1)
-calibrated_clf.fit(X_train_final, y_train_final)
-best_pipeline = calibrated_clf
-print("    Model calibrated using Platt scaling (sigmoid) with full pipeline context")
-
-# --- 9. Threshold Optimization ---
-print("\n[9] Optimizing Classification Threshold...")
-# Use original validation set for threshold optimization (already held out)
-# Get calibrated probabilities on validation set
-y_val_proba_calibrated = get_proba(best_pipeline, X_val)
-
-# Test thresholds from 0.1 to 0.9
 thresholds = np.linspace(0.1, 0.9, 81)
 best_threshold = 0.5
-best_f1 = 0
+best_f1 = 0.0
 threshold_scores = []
 
 for t in thresholds:
-    y_pred_t = (y_val_proba_calibrated >= t).astype(int)
-    score = f1_score(y_val, y_pred_t, zero_division=0) # pyright: ignore[reportArgumentType]
+    y_val_pred_t = (y_val_proba_holdout >= t).astype(int)
+    score = f1_score(y_val, y_val_pred_t, zero_division=0) # pyright: ignore[reportArgumentType]
     threshold_scores.append({'threshold': t, 'f1_score': score})
     if score > best_f1:
         best_f1 = score
         best_threshold = t
 
+default_f1 = f1_score(y_val, (y_val_proba_holdout >= 0.5).astype(int), zero_division=0) # pyright: ignore[reportArgumentType]
 print(f"    Optimal threshold: {best_threshold:.3f} (F1: {best_f1:.4f})")
-print(f"    Default threshold (0.5) F1: {f1_score(y_val, (y_val_proba_calibrated >= 0.5).astype(int), zero_division=0):.4f}") # pyright: ignore[reportArgumentType]
+print(f"    Default threshold (0.5) F1: {default_f1:.4f}")
 
-# Plot threshold optimization curve
 threshold_df = pd.DataFrame(threshold_scores)
 plt.figure(figsize=(8, 6))
 plt.plot(threshold_df['threshold'], threshold_df['f1_score'])
@@ -438,6 +417,25 @@ plt.grid(True, alpha=0.3)
 plt.savefig(images_dir / 'threshold_optimization.png')
 plt.close()
 print("    Saved threshold optimization curve to 'threshold_optimization.png'")
+
+# --- 8. Final Refit on Train+Val (Use More Data) ---
+print("\n[8] Final Refit on Combined Train+Validation Set...")
+# Combine train and validation for final model (common practice)
+X_train_final = pd.concat([X_train, X_val], axis=0, ignore_index=True)  # type: ignore
+y_train_final = pd.concat([y_train, y_val], axis=0, ignore_index=True)  # type: ignore
+print(f"    Combined training data: {len(X_train_final)} samples")
+
+# Refit uncalibrated model on combined data
+uncalibrated_best.fit(X_train_final, y_train_final)
+print("    Uncalibrated model refit on train+val")
+
+# --- 9. Model Calibration ---
+print("\n[9] Calibrating Best Model Probabilities...")
+# Wrap the entire pipeline in CalibratedClassifierCV to ensure preprocessing is respected
+calibrated_clf = CalibratedClassifierCV(uncalibrated_best, cv=5, method='sigmoid', n_jobs=-1)
+calibrated_clf.fit(X_train_final, y_train_final)
+best_pipeline = calibrated_clf
+print("    Model calibrated using Platt scaling (sigmoid) with full pipeline context")
 
 # Re-evaluate test set with optimal threshold
 y_test_proba_calibrated = get_proba(best_pipeline, X_test)
