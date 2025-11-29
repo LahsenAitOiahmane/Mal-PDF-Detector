@@ -222,7 +222,7 @@ pipe_xgb = Pipeline([
 ])
 
 # Calculate scale_pos_weight for class imbalance (if malicious is minority)
-scale_pos_weight = benign_count / malicious_count if malicious_count < benign_count else 1.0
+scale_pos_weight = benign_count / malicious_count if malicious_count < benign_count else malicious_count / benign_count
 param_xgb = {
     'clf__n_estimators': [100, 200, 300],
     'clf__learning_rate': [0.01, 0.1, 0.2],
@@ -387,7 +387,7 @@ print("    Uncalibrated model refit on train+val")
 # --- 8. Model Calibration ---
 print("\n[8] Calibrating Best Model Probabilities...")
 # Wrap the entire pipeline in CalibratedClassifierCV to ensure preprocessing is respected
-calibrated_clf = CalibratedClassifierCV(uncalibrated_best, cv=5, method='sigmoid')
+calibrated_clf = CalibratedClassifierCV(uncalibrated_best, cv=5, method='sigmoid', n_jobs=-1)
 calibrated_clf.fit(X_train_final, y_train_final)
 best_pipeline = calibrated_clf
 print("    Model calibrated using Platt scaling (sigmoid) with full pipeline context")
