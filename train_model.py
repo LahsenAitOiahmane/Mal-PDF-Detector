@@ -40,7 +40,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, 
-    roc_auc_score, confusion_matrix, roc_curve, auc, classification_report
+    roc_auc_score, confusion_matrix, roc_curve, classification_report
 )
 
 # --- Configuration ---
@@ -320,6 +320,7 @@ for name, pipeline, params in models_to_train:
 print("\n[5] Evaluating on Strictly Unseen Test Set...")
 
 test_results = []
+classification_reports: list[str] = []
 plt.figure(figsize=(10, 8))
 
 for name, model in best_models.items():
@@ -342,6 +343,15 @@ for name, model in best_models.items():
         'F1_Score': f1,
         'AUC': auc_score
     })
+    
+    # Capture classification report for debugging
+    report = classification_report(
+        y_test,
+        y_pred,
+        target_names=['Benign', 'Malicious'],
+        zero_division=0 # pyright: ignore[reportArgumentType]
+    )
+    classification_reports.append(f"Model: {name}\n{report}\n{'-'*60}\n")
     
     # Plot ROC Curve
     fpr, tpr, _ = roc_curve(y_test, y_proba)
@@ -447,6 +457,17 @@ print(f"      Recall: {optimal_rec:.4f}")
 print(f"      F1-Score: {optimal_f1:.4f}")
 print(f"      AUC: {optimal_auc:.4f}")
 
+# Append optimal-threshold classification report for debugging
+optimal_report = classification_report(
+    y_test,
+    y_test_pred_optimal,
+    target_names=['Benign', 'Malicious'],
+    zero_division=0 # pyright: ignore[reportArgumentType]
+)
+classification_reports.append(
+    f"Model: {best_model_name} (Optimal Threshold {best_threshold:.3f})\n{optimal_report}\n{'-'*60}\n"
+)
+
 # Save optimal threshold metrics CSV
 optimal_df = pd.DataFrame([{
     'Model': f'{best_model_name} (Optimal Threshold)',
@@ -524,6 +545,12 @@ plt.xlabel('Predicted Label')
 plt.savefig(images_dir / 'confusion_matrix_best_optimal.png')
 plt.close()
 print("    Saved best model confusion matrix (optimal threshold) to 'confusion_matrix_best_optimal.png'")
+
+# Save classification reports to text file for debugging
+classification_report_path = reports_dir / 'classification_reports.txt'
+with open(classification_report_path, 'w') as cr_file:
+    cr_file.writelines(classification_reports)
+print(f"    Saved detailed classification reports to '{classification_report_path}'")
 
 # --- 10. Feature Importance Analysis (Permutation Importance for All Models) ---
 print("\n[10] Computing Feature Importance (Permutation Importance)...")
@@ -699,3 +726,4 @@ print(f"  - Visualizations: roc_curve_comparison.png, confusion_matrices_all_mod
 print(f"  - Feature Analysis: feature_importance_comparison.png")
 print(f"  - Explanations: shap_summary_plot.png, shap_feature_importance.png (if tree model)")
 print(f"  - Optimization: threshold_optimization.png, confusion_matrix_best_optimal.png")
+print(f"  - Debugging Reports: classification_reports.txt")
