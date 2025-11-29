@@ -24,6 +24,7 @@ import random
 from pathlib import Path
 from time import time
 from datetime import datetime
+from typing import Any
 from matplotlib.axes import Axes
 
 # Scikit-Learn Imports
@@ -263,6 +264,7 @@ best_models = {}
 results_data = []
 
 cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_SEED)
+best_params_map: dict[str, dict[str, Any] | None] = {}
 
 for name, pipeline, params in models_to_train:
     print(f"\n    Training {name}...")
@@ -283,6 +285,7 @@ for name, pipeline, params in models_to_train:
         best_model = search.best_estimator_
         print(f"      Best Params: {search.best_params_}")
         cv_score = search.best_score_
+        best_params_map[name] = search.best_params_
     else:
         # Simple fit for baseline
         pipeline.fit(X_train, y_train)
@@ -291,14 +294,15 @@ for name, pipeline, params in models_to_train:
         from sklearn.model_selection import cross_val_score
         scores = cross_val_score(pipeline, X_train, y_train, cv=cv, scoring=SCORING_METRIC)
         cv_score = scores.mean()
+        best_params_map[name] = None
 
     duration = time() - start
     print(f"      CV {SCORING_METRIC.upper()}: {cv_score:.4f} (Time: {duration:.2f}s)")
     
     # Evaluate on validation set
-    y_val_pred = best_model.predict(X_val)
+    y_val_pred = best_model.predict(X_val) # type: ignore
     y_val_proba = get_proba(best_model, X_val)
-    val_f1 = f1_score(y_val, y_val_pred, zero_division='warn')
+    val_f1 = f1_score(y_val, y_val_pred, zero_division=0)  # pyright: ignore[reportArgumentType]
     val_auc = roc_auc_score(y_val, y_val_proba)
     print(f"      Validation F1: {val_f1:.4f}, AUC: {val_auc:.4f}")
     
@@ -308,7 +312,8 @@ for name, pipeline, params in models_to_train:
         'CV_F1_Score': cv_score,
         'Val_F1_Score': val_f1,
         'Val_AUC': val_auc,
-        'Training_Time': duration
+        'Training_Time': duration,
+        'Best_Params': best_params_map[name]
     })
 
 # --- 5. Final Evaluation on UNSEEN Test Set ---
@@ -324,9 +329,9 @@ for name, model in best_models.items():
     
     # Metrics with zero_division to handle edge cases
     acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred, zero_division='warn')
-    rec = recall_score(y_test, y_pred, zero_division='warn')
-    f1 = f1_score(y_test, y_pred, zero_division='warn')
+    prec = precision_score(y_test, y_pred, zero_division=0) # pyright: ignore[reportArgumentType]
+    rec = recall_score(y_test, y_pred, zero_division=0) # pyright: ignore[reportArgumentType]
+    f1 = f1_score(y_test, y_pred, zero_division=0) # pyright: ignore[reportArgumentType]
     auc_score = roc_auc_score(y_test, y_proba)
     
     test_results.append({
@@ -349,6 +354,7 @@ plt.ylabel('True Positive Rate')
 plt.title('ROC Curve Comparison')
 plt.legend()
 plt.savefig(images_dir / 'roc_curve_comparison.png')
+plt.close()
 print("    Saved ROC Curve to 'roc_curve_comparison.png'")
 
 # Save Metrics CSV
@@ -380,38 +386,11 @@ print("    Uncalibrated model refit on train+val")
 
 # --- 8. Model Calibration ---
 print("\n[8] Calibrating Best Model Probabilities...")
-# Calibrate only the classifier, not the entire pipeline
-# This is more reliable than wrapping the whole pipeline
-if hasattr(uncalibrated_best, 'named_steps'):
-    # Extract preprocessing steps and classifier
-    pre = uncalibrated_best.named_steps  # type: ignore
-    raw_classifier = pre['clf']  # type: ignore
-    
-    # Calibrate only the classifier
-    calibrated_clf = CalibratedClassifierCV(raw_classifier, cv=5, method='sigmoid')
-    calibrated_clf.fit(X_train_final, y_train_final)
-    
-    # Rebuild pipeline with calibrated classifier
-    if best_model_name in ['Random Forest', 'XGBoost']:
-        # Tree models: no scaler
-        best_pipeline = Pipeline([
-            ('imputer', pre.get('imputer', SimpleImputer(strategy='median'))),  # type: ignore
-            ('clf', calibrated_clf)
-        ])
-    else:
-        # Non-tree models: include scaler
-        best_pipeline = Pipeline([
-            ('imputer', pre.get('imputer', SimpleImputer(strategy='median'))),  # type: ignore
-            ('scaler', pre.get('scaler', StandardScaler())),  # type: ignore
-            ('clf', calibrated_clf)
-        ])
-else:
-    # If not a pipeline, calibrate directly
-    calibrated_clf = CalibratedClassifierCV(uncalibrated_best, cv=5, method='sigmoid')
-    calibrated_clf.fit(X_train_final, y_train_final)
-    best_pipeline = calibrated_clf
-
-print("    Model calibrated using Platt scaling (sigmoid)")
+# Wrap the entire pipeline in CalibratedClassifierCV to ensure preprocessing is respected
+calibrated_clf = CalibratedClassifierCV(uncalibrated_best, cv=5, method='sigmoid')
+calibrated_clf.fit(X_train_final, y_train_final)
+best_pipeline = calibrated_clf
+print("    Model calibrated using Platt scaling (sigmoid) with full pipeline context")
 
 # --- 9. Threshold Optimization ---
 print("\n[9] Optimizing Classification Threshold...")
@@ -427,14 +406,14 @@ threshold_scores = []
 
 for t in thresholds:
     y_pred_t = (y_val_proba_calibrated >= t).astype(int)
-    score = f1_score(y_val, y_pred_t, zero_division='warn')
+    score = f1_score(y_val, y_pred_t, zero_division=0) # pyright: ignore[reportArgumentType]
     threshold_scores.append({'threshold': t, 'f1_score': score})
     if score > best_f1:
         best_f1 = score
         best_threshold = t
 
 print(f"    Optimal threshold: {best_threshold:.3f} (F1: {best_f1:.4f})")
-print(f"    Default threshold (0.5) F1: {f1_score(y_val, (y_val_proba_calibrated >= 0.5).astype(int), zero_division='warn'):.4f}")
+print(f"    Default threshold (0.5) F1: {f1_score(y_val, (y_val_proba_calibrated >= 0.5).astype(int), zero_division=0):.4f}") # pyright: ignore[reportArgumentType]
 
 # Plot threshold optimization curve
 threshold_df = pd.DataFrame(threshold_scores)
@@ -456,9 +435,9 @@ y_test_pred_optimal = (y_test_proba_calibrated >= best_threshold).astype(int)
 
 # Update best model metrics with optimal threshold
 optimal_acc = accuracy_score(y_test, y_test_pred_optimal)
-optimal_prec = precision_score(y_test, y_test_pred_optimal, zero_division='warn')
-optimal_rec = recall_score(y_test, y_test_pred_optimal, zero_division='warn')
-optimal_f1 = f1_score(y_test, y_test_pred_optimal, zero_division='warn')
+optimal_prec = precision_score(y_test, y_test_pred_optimal, zero_division=0) # pyright: ignore[reportArgumentType]
+optimal_rec = recall_score(y_test, y_test_pred_optimal, zero_division=0) # pyright: ignore[reportArgumentType]
+optimal_f1 = f1_score(y_test, y_test_pred_optimal, zero_division=0) # pyright: ignore[reportArgumentType]
 optimal_auc = roc_auc_score(y_test, y_test_proba_calibrated)
 
 print(f"\n    Test Set Metrics with Optimal Threshold ({best_threshold:.3f}):")
@@ -515,7 +494,10 @@ for idx, (name, model) in enumerate(best_models.items()):
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
                 xticklabels=['Benign', 'Malicious'], 
                 yticklabels=['Benign', 'Malicious'])
-    ax.set_title(f'{name}')
+    if name == best_model_name:
+        ax.set_title(f'{name} (threshold=0.5 default)')
+    else:
+        ax.set_title(f'{name} (threshold=0.5)')
     ax.set_ylabel('True Label')
     ax.set_xlabel('Predicted Label')
 
@@ -527,6 +509,7 @@ plt.tight_layout()
 plt.savefig(images_dir / 'confusion_matrices_all_models.png')
 plt.close()
 print("    Saved confusion matrices to 'confusion_matrices_all_models.png'")
+print("    Note: Above matrices use default 0.5 threshold; see best model plot for calibrated threshold.")
 
 # Also save best model confusion matrix separately (with optimal threshold)
 y_pred_best_optimal = (get_proba(best_pipeline, X_test) >= best_threshold).astype(int)
@@ -580,7 +563,7 @@ for name, model in best_models.items():
     feature_importance_results[name] = {
         'importances_mean': importances_mean,
         'importances_std': importances_std,
-        'features': list(X.columns)
+        'features': list(X_importance_sample.columns)
     }
 
 # Create feature importance comparison plot
@@ -622,6 +605,8 @@ try:
             
             # Transform through imputer (required for pipeline consistency)
             X_shap_proc = pre['imputer'].transform(X_shap_raw)  # type: ignore
+            # feature_names: list[str] = list[str](X_shap_raw.columns)
+            feature_names = list(X_shap_raw.columns)
             raw_model = pre['clf']  # type: ignore
         else:
             # If not a pipeline, use raw model
@@ -629,14 +614,19 @@ try:
             X_test_df = X_test if isinstance(X_test, pd.DataFrame) else pd.DataFrame(X_test)
             X_shap_raw = X_test_df.sample(n=min(500, len(X_test_df)), random_state=RANDOM_SEED) if len(X_test_df) > 500 else X_test_df
             print(f"    Using {len(X_shap_raw)} samples for SHAP computation")
-            X_shap_proc = X_shap_raw
+            X_shap_proc = X_shap_raw.to_numpy()
+            # feature_names: list[str] = list[str](X_shap_raw.columns)
+            feature_names = list(X_shap_raw.columns)
+        
+        # Convert to DataFrame for consistent feature names
+        X_shap_proc_df = pd.DataFrame(X_shap_proc, columns=feature_names) # type: ignore
         
         # Use preprocessed features (imputed) - tree models don't need scaling
-        explainer = shap.TreeExplainer(raw_model)
-        shap_values = explainer.shap_values(X_shap_proc)
+        explainer = shap.TreeExplainer(raw_model, feature_perturbation="tree_path_dependent")
+        shap_values = explainer.shap_values(X_shap_proc_df)
         
         plt.figure(figsize=(10, 8))
-        shap.summary_plot(shap_values, X_shap_proc, show=False)
+        shap.summary_plot(shap_values, X_shap_proc_df, feature_names=feature_names, show=False)
         plt.tight_layout()
         plt.savefig(images_dir / 'shap_summary_plot.png')
         plt.close()
@@ -644,7 +634,7 @@ try:
         
         # Also create feature importance bar plot
         plt.figure(figsize=(8, 6))
-        shap.summary_plot(shap_values, X_shap_proc, plot_type="bar", show=False)
+        shap.summary_plot(shap_values, X_shap_proc_df, plot_type="bar", feature_names=feature_names, show=False)
         plt.tight_layout()
         plt.savefig(images_dir / 'shap_feature_importance.png')
         plt.close()
@@ -661,6 +651,8 @@ except Exception as e:
 # --- 13. Training Metadata Logging ---
 print("\n[13] Saving Training Metadata...")
 
+best_model_cv_entry = next((item for item in results_data if item['Model'] == best_model_name), None)
+
 training_metadata = {
     "random_seed": RANDOM_SEED,
     "train_samples": len(X_train),
@@ -675,6 +667,8 @@ training_metadata = {
     "optimal_precision": float(optimal_prec),
     "optimal_recall": float(optimal_rec),
     "optimal_auc": float(optimal_auc),
+    "best_model_cv_f1": float(best_model_cv_entry['CV_F1_Score']) if best_model_cv_entry else None,
+    "best_model_params": best_params_map.get(best_model_name),
     "class_distribution": {
         "benign": int(benign_count),
         "malicious": int(malicious_count),
@@ -684,7 +678,8 @@ training_metadata = {
     "timestamp": datetime.now().isoformat(),
     "cv_folds": CV_FOLDS,
     "scoring_metric": SCORING_METRIC,
-    "all_model_metrics": test_results
+    "all_model_metrics": test_results,
+    "cv_results": results_data
 }
 
 metadata_path = reports_dir / 'training_metadata.json'
