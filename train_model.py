@@ -294,7 +294,7 @@ for name, pipeline, params in models_to_train:
     # Evaluate on validation set
     y_val_pred = best_model.predict(X_val)
     y_val_proba = get_proba(best_model, X_val)
-    val_f1 = f1_score(y_val, y_val_pred, zero_division=0)
+    val_f1 = f1_score(y_val, y_val_pred, zero_division='warn')
     val_auc = roc_auc_score(y_val, y_val_proba)
     print(f"      Validation F1: {val_f1:.4f}, AUC: {val_auc:.4f}")
     
@@ -320,9 +320,9 @@ for name, model in best_models.items():
     
     # Metrics with zero_division to handle edge cases
     acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred, zero_division=0)
-    rec = recall_score(y_test, y_pred, zero_division=0)
-    f1 = f1_score(y_test, y_pred, zero_division=0)
+    prec = precision_score(y_test, y_pred, zero_division='warn')
+    rec = recall_score(y_test, y_pred, zero_division='warn')
+    f1 = f1_score(y_test, y_pred, zero_division='warn')
     auc_score = roc_auc_score(y_test, y_proba)
     
     test_results.append({
@@ -423,14 +423,14 @@ threshold_scores = []
 
 for t in thresholds:
     y_pred_t = (y_val_proba_calibrated >= t).astype(int)
-    score = f1_score(y_val, y_pred_t, zero_division=0)
+    score = f1_score(y_val, y_pred_t, zero_division='warn')
     threshold_scores.append({'threshold': t, 'f1_score': score})
     if score > best_f1:
         best_f1 = score
         best_threshold = t
 
 print(f"    Optimal threshold: {best_threshold:.3f} (F1: {best_f1:.4f})")
-print(f"    Default threshold (0.5) F1: {f1_score(y_val, (y_val_proba_calibrated >= 0.5).astype(int), zero_division=0):.4f}")
+print(f"    Default threshold (0.5) F1: {f1_score(y_val, (y_val_proba_calibrated >= 0.5).astype(int), zero_division='warn'):.4f}")
 
 # Plot threshold optimization curve
 threshold_df = pd.DataFrame(threshold_scores)
@@ -452,9 +452,9 @@ y_test_pred_optimal = (y_test_proba_calibrated >= best_threshold).astype(int)
 
 # Update best model metrics with optimal threshold
 optimal_acc = accuracy_score(y_test, y_test_pred_optimal)
-optimal_prec = precision_score(y_test, y_test_pred_optimal, zero_division=0)
-optimal_rec = recall_score(y_test, y_test_pred_optimal, zero_division=0)
-optimal_f1 = f1_score(y_test, y_test_pred_optimal, zero_division=0)
+optimal_prec = precision_score(y_test, y_test_pred_optimal, zero_division='warn')
+optimal_rec = recall_score(y_test, y_test_pred_optimal, zero_division='warn')
+optimal_f1 = f1_score(y_test, y_test_pred_optimal, zero_division='warn')
 optimal_auc = roc_auc_score(y_test, y_test_proba_calibrated)
 
 print(f"\n    Test Set Metrics with Optimal Threshold ({best_threshold:.3f}):")
