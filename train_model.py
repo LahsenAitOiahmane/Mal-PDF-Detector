@@ -567,7 +567,7 @@ for name, model in best_models.items():
     sample_size = min(1000, len(X_test_df))
     if len(X_test_df) > sample_size:
         X_importance_sample = X_test_df.sample(n=sample_size, random_state=RANDOM_SEED)
-        y_importance_sample = y_test_series.iloc[X_importance_sample.index]
+        y_importance_sample = y_test_series.loc[X_importance_sample.index]
         print(f"      Using sample of {sample_size} for faster computation")
     else:
         X_importance_sample = X_test_df

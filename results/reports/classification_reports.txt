@@ -1,0 +1,66 @@
+Model: Logistic Regression
+              precision    recall  f1-score   support
+
+      Benign       0.93      0.89      0.91      1366
+   Malicious       0.94      0.96      0.95      2221
+
+    accuracy                           0.93      3587
+   macro avg       0.93      0.92      0.93      3587
+weighted avg       0.93      0.93      0.93      3587
+
+------------------------------------------------------------
+Model: SVM
+              precision    recall  f1-score   support
+
+      Benign       0.96      0.99      0.97      1366
+   Malicious       0.99      0.97      0.98      2221
+
+    accuracy                           0.98      3587
+   macro avg       0.98      0.98      0.98      3587
+weighted avg       0.98      0.98      0.98      3587
+
+------------------------------------------------------------
+Model: Random Forest
+              precision    recall  f1-score   support
+
+      Benign       0.98      0.99      0.99      1366
+   Malicious       1.00      0.99      0.99      2221
+
+    accuracy                           0.99      3587
+   macro avg       0.99      0.99      0.99      3587
+weighted avg       0.99      0.99      0.99      3587
+
+------------------------------------------------------------
+Model: XGBoost
+              precision    recall  f1-score   support
+
+      Benign       0.99      0.99      0.99      1366
+   Malicious       1.00      0.99      0.99      2221
+
+    accuracy                           0.99      3587
+   macro avg       0.99      0.99      0.99      3587
+weighted avg       0.99      0.99      0.99      3587
+
+------------------------------------------------------------
+Model: Neural Network
+              precision    recall  f1-score   support
+
+      Benign       0.98      0.99      0.98      1366
+   Malicious       0.99      0.99      0.99      2221
+
+    accuracy                           0.99      3587
+   macro avg       0.99      0.99      0.99      3587
+weighted avg       0.99      0.99      0.99      3587
+
+------------------------------------------------------------
+Model: XGBoost (Optimal Threshold 0.640)
+              precision    recall  f1-score   support
+
+      Benign       0.99      0.99      0.99      1366
+   Malicious       1.00      0.99      0.99      2221
+
+    accuracy                           0.99      3587
+   macro avg       0.99      0.99      0.99      3587
+weighted avg       0.99      0.99      0.99      3587
+
+------------------------------------------------------------

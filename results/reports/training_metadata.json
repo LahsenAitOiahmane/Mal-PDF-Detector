@@ -1,0 +1,150 @@
+{
+  "random_seed": 42,
+  "train_samples": 16736,
+  "validation_samples": 3587,
+  "test_samples": 3587,
+  "features_used": [
+    "keyword_OpenAction",
+    "log_file_size",
+    "entropy_density",
+    "pdf_version",
+    "keyword_JavaScript",
+    "entropy",
+    "keyword_ObjStm"
+  ],
+  "n_features": 7,
+  "best_model": "XGBoost",
+  "best_threshold": 0.64,
+  "optimal_f1_score": 0.9936851601262968,
+  "optimal_accuracy": 0.9921940340117089,
+  "optimal_precision": 0.9954812471757795,
+  "optimal_recall": 0.9918955425484016,
+  "optimal_auc": 0.9992906786873337,
+  "best_model_cv_f1": 0.9904254467642224,
+  "best_model_params": {
+    "clf__subsample": 1.0,
+    "clf__scale_pos_weight": 1.0,
+    "clf__n_estimators": 300,
+    "clf__max_depth": 10,
+    "clf__learning_rate": 0.1,
+    "clf__colsample_bytree": 1.0
+  },
+  "class_distribution": {
+    "benign": 9107,
+    "malicious": 14803,
+    "imbalance_ratio": 1.6254529482815416
+  },
+  "model_version": "model_v20251129_025350.pkl",
+  "timestamp": "2025-11-29T02:54:25.173912",
+  "cv_folds": 5,
+  "scoring_metric": "f1",
+  "all_model_metrics": [
+    {
+      "Model": "Logistic Regression",
+      "Accuracy": 0.9322553666016169,
+      "Precision": 0.9352992957746479,
+      "Recall": 0.9567762269248087,
+      "F1_Score": 0.9459158691297574,
+      "AUC": 0.9607684665804846
+    },
+    {
+      "Model": "SVM",
+      "Accuracy": 0.9790911625313633,
+      "Precision": 0.9944700460829493,
+      "Recall": 0.9716343989194057,
+      "F1_Score": 0.9829196082896834,
+      "AUC": 0.9946912969043662
+    },
+    {
+      "Model": "Random Forest",
+      "Accuracy": 0.9916364650125453,
+      "Precision": 0.9959257582616569,
+      "Recall": 0.9905447996398019,
+      "F1_Score": 0.9932279909706546,
+      "AUC": 0.9995751323550062
+    },
+    {
+      "Model": "XGBoost",
+      "Accuracy": 0.9921940340117089,
+      "Precision": 0.9959294436906377,
+      "Recall": 0.9914452949122017,
+      "F1_Score": 0.9936823104693141,
+      "AUC": 0.9988506489696712
+    },
+    {
+      "Model": "Neural Network",
+      "Accuracy": 0.9882910510175634,
+      "Precision": 0.993656547349343,
+      "Recall": 0.9873930661864025,
+      "F1_Score": 0.9905149051490515,
+      "AUC": 0.9984956587030628
+    }
+  ],
+  "cv_results": [
+    {
+      "Model": "Logistic Regression",
+      "CV_F1_Score": 0.9456582237743805,
+      "Val_F1_Score": 0.9512195121951219,
+      "Val_AUC": 0.9677578524703961,
+      "Training_Time": 0.2979567050933838,
+      "Best_Params": null
+    },
+    {
+      "Model": "SVM",
+      "CV_F1_Score": 0.9813023561481952,
+      "Val_F1_Score": 0.9845384265575261,
+      "Val_AUC": 0.9934928339430024,
+      "Training_Time": 207.33627676963806,
+      "Best_Params": {
+        "clf__kernel": "rbf",
+        "clf__gamma": "scale",
+        "clf__C": 10
+      }
+    },
+    {
+      "Model": "Random Forest",
+      "CV_F1_Score": 0.9907954910683557,
+      "Val_F1_Score": 0.9934581547484773,
+      "Val_AUC": 0.9983339848629776,
+      "Training_Time": 60.066651582717896,
+      "Best_Params": {
+        "clf__n_estimators": 200,
+        "clf__min_samples_split": 2,
+        "clf__max_depth": null,
+        "clf__class_weight": "balanced"
+      }
+    },
+    {
+      "Model": "XGBoost",
+      "CV_F1_Score": 0.9904254467642224,
+      "Val_F1_Score": 0.9925591882750846,
+      "Val_AUC": 0.9980760648224752,
+      "Training_Time": 11.140296697616577,
+      "Best_Params": {
+        "clf__subsample": 1.0,
+        "clf__scale_pos_weight": 1.0,
+        "clf__n_estimators": 300,
+        "clf__max_depth": 10,
+        "clf__learning_rate": 0.1,
+        "clf__colsample_bytree": 1.0
+      }
+    },
+    {
+      "Model": "Neural Network",
+      "CV_F1_Score": 0.9847472619289492,
+      "Val_F1_Score": 0.9878048780487805,
+      "Val_AUC": 0.997973556026825,
+      "Training_Time": 61.477057695388794,
+      "Best_Params": {
+        "clf__learning_rate_init": 0.01,
+        "clf__learning_rate": "constant",
+        "clf__hidden_layer_sizes": [
+          100,
+          50
+        ],
+        "clf__alpha": 0.001,
+        "clf__activation": "tanh"
+      }
+    }
+  ]
+}
