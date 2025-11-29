@@ -78,7 +78,10 @@ def get_proba(estimator, X):
                               (scores.max(axis=1, keepdims=True) - scores.min(axis=1, keepdims=True) + 1e-10)
             return scores_normalized
     else:
-        raise RuntimeError(f"Model {type(estimator)} has no probability outputs (predict_proba or decision_function)")
+        model_name = estimator.__class__.__name__ if hasattr(estimator, "__class__") else str(type(estimator))
+        raise RuntimeError(
+            f"Model {model_name} has no probability outputs (predict_proba or decision_function)"
+        )
 
 # --- Paths ---
 script_dir = Path(__file__).parent
@@ -613,7 +616,8 @@ try:
         if hasattr(uncalibrated_best, 'named_steps'):
             pre = uncalibrated_best.named_steps  # type: ignore
             # Apply imputer transformation (pipeline preprocessing)
-            X_shap_raw = X_test.sample(n=min(500, len(X_test)), random_state=RANDOM_SEED) if len(X_test) > 500 else X_test
+            X_test_df = X_test if isinstance(X_test, pd.DataFrame) else pd.DataFrame(X_test)
+            X_shap_raw = X_test_df.sample(n=min(500, len(X_test_df)), random_state=RANDOM_SEED) if len(X_test_df) > 500 else X_test_df
             print(f"    Using {len(X_shap_raw)} samples for SHAP computation")
             
             # Transform through imputer (required for pipeline consistency)
@@ -622,7 +626,8 @@ try:
         else:
             # If not a pipeline, use raw model
             raw_model = uncalibrated_best
-            X_shap_raw = X_test.sample(n=min(500, len(X_test)), random_state=RANDOM_SEED) if len(X_test) > 500 else X_test
+            X_test_df = X_test if isinstance(X_test, pd.DataFrame) else pd.DataFrame(X_test)
+            X_shap_raw = X_test_df.sample(n=min(500, len(X_test_df)), random_state=RANDOM_SEED) if len(X_test_df) > 500 else X_test_df
             print(f"    Using {len(X_shap_raw)} samples for SHAP computation")
             X_shap_proc = X_shap_raw
         
