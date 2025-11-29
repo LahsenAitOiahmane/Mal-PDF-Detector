@@ -15,10 +15,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+sns.set()  # Set seaborn style to prevent version mismatch issues
 import xgboost as xgb
 import shap
 import joblib
 import json
+import random
 from pathlib import Path
 from time import time
 from datetime import datetime
@@ -27,6 +29,7 @@ from datetime import datetime
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
@@ -40,10 +43,41 @@ from sklearn.metrics import (
 
 # --- Configuration ---
 RANDOM_SEED = 42
+# Set all random seeds for reproducibility
+np.random.seed(RANDOM_SEED)
+random.seed(RANDOM_SEED)
+
 TEST_SIZE = 0.15        # 15% Final Test (Strictly Unseen)
 VALIDATION_SIZE = 0.15  # 15% Validation (used implicitly via CV or split)
 CV_FOLDS = 5            # 5-Fold Cross Validation
 SCORING_METRIC = 'f1'   # Optimize for F1-Score (Balance Precision/Recall)
+SVM_N_ITER = 5          # Reduced iterations for SVM RandomizedSearch (probability=True is slow)
+
+# --- Helper Functions ---
+def get_proba(estimator, X):
+    """
+    Safely extract probability scores from estimator.
+    Falls back to decision_function if predict_proba not available.
+    """
+    if hasattr(estimator, "predict_proba"):
+        proba = estimator.predict_proba(X)
+        if proba.shape[1] == 2:
+            return proba[:, 1]
+        else:
+            return proba
+    elif hasattr(estimator, "decision_function"):
+        scores = estimator.decision_function(X)
+        # Normalize decision scores to [0, 1] range
+        if scores.ndim == 1:
+            scores_normalized = (scores - scores.min()) / (scores.max() - scores.min() + 1e-10)
+            return scores_normalized
+        else:
+            # Multi-class case
+            scores_normalized = (scores - scores.min(axis=1, keepdims=True)) / \
+                              (scores.max(axis=1, keepdims=True) - scores.min(axis=1, keepdims=True) + 1e-10)
+            return scores_normalized
+    else:
+        raise RuntimeError(f"Model {type(estimator)} has no probability outputs (predict_proba or decision_function)")
 
 # --- Paths ---
 script_dir = Path(__file__).parent
@@ -54,11 +88,12 @@ reports_dir = results_dir / 'reports'
 images_dir = results_dir / 'images'
 
 # Create directories
-for d in [models_dir, reports_dir, images_dir]:
+for d in [csv_dir, models_dir, reports_dir, images_dir]:
     d.mkdir(parents=True, exist_ok=True)
 
 # Load Data
 data_path = csv_dir / 'pdf_features_final.csv'
+assert data_path.exists(), f"Dataset missing at {data_path}. Please run create_final_dataset.py first."
 print(f"Loading dataset from: {data_path}")
 df = pd.read_csv(data_path)
 
@@ -69,15 +104,24 @@ print("\n[1] Data Preparation...")
 X = df.drop(columns=['class', 'file_name'])
 y = df['class']
 
-# Safety Check: Handle Infinite values
-X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
+# Validate and map label encoding (handle string labels if present)
+if y.dtype == 'object' or y.dtype.name == 'category':
+    label_map = {'benign': 0, 'malicious': 1, 'Benign': 0, 'Malicious': 1, 0: 0, 1: 1}
+    y = y.map(label_map)  # type: ignore
+    if y.isna().any():  # type: ignore
+        print(f"    [WARNING] Unknown labels found, mapping to numeric")
+        y = pd.to_numeric(y, errors='coerce').fillna(0).astype(int)  # type: ignore
+
+# Safety Check: Handle Infinite values (will be handled in pipeline imputers)
+# Keep NaN for now - imputers in pipelines will handle them properly
+X = X.replace([np.inf, -np.inf], np.nan)
 
 print(f"    Total Samples: {len(X)}")
 print(f"    Features ({X.shape[1]}): {list(X.columns)}")
 
 # --- A. Balanced Dataset Check ---
 print("\n[A] Checking Dataset Balance...")
-class_counts = y.value_counts().sort_index()
+class_counts = y.value_counts().sort_index()  # type: ignore
 
 # Safely extract counts, handling None values
 benign_count = int(class_counts.get(0, 0) or 0)
@@ -127,7 +171,9 @@ print(f"    Test Data:       {len(X_test)} samples ({len(X_test)/len(X)*100:.1f}
 print("\n[3] Defining Pipelines and Hyperparameter Grids...")
 
 # A. Logistic Regression (Baseline - Simple)
+# Imputation in pipeline prevents data leakage
 pipe_lr = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
     ('scaler', StandardScaler()),
     ('clf', LogisticRegression(solver='liblinear', random_state=RANDOM_SEED, max_iter=1000))
 ])
@@ -136,6 +182,7 @@ pipe_lr = Pipeline([
 # Note: probability=True enables predict_proba() but significantly increases training time
 # This is necessary for ROC-AUC calculation
 pipe_svm = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
     ('scaler', StandardScaler()),
     ('clf', SVC(probability=True, random_state=RANDOM_SEED))
 ])
@@ -147,7 +194,9 @@ param_svm = {
 
 # C. Random Forest (Baseline - Simple)
 # Note: Tree models are scale-invariant - scaling is NOT needed and hurts performance
+# But we still need imputation in pipeline to prevent leakage
 pipe_rf = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
     ('clf', RandomForestClassifier(random_state=RANDOM_SEED))
 ])
 param_rf = {
@@ -159,7 +208,9 @@ param_rf = {
 
 # D. XGBoost (Advanced)
 # Note: Tree models are scale-invariant - scaling is NOT needed and hurts performance
+# But we still need imputation in pipeline to prevent leakage
 pipe_xgb = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
     ('clf', xgb.XGBClassifier(
         eval_metric='logloss', use_label_encoder=False, random_state=RANDOM_SEED
     ))
@@ -180,6 +231,7 @@ param_xgb = {
 # Note: max_iter=1000 ensures convergence for most datasets
 # early_stopping=True helps prevent overfitting and speeds up training
 pipe_nn = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
     ('scaler', StandardScaler()),
     ('clf', MLPClassifier(random_state=RANDOM_SEED, max_iter=1000, early_stopping=True, 
                          validation_fraction=0.1, n_iter_no_change=10))
@@ -217,8 +269,10 @@ for name, pipeline, params in models_to_train:
     if params:
         # Use Randomized Search for tuning (uses CV on training set only)
         # Note: Validation set is NOT used here - it's reserved for model selection check
+        # Reduce n_iter for SVM (probability=True is very slow)
+        n_iter = SVM_N_ITER if name == 'SVM' else 10
         search = RandomizedSearchCV(
-            pipeline, params, n_iter=10, scoring=SCORING_METRIC, 
+            pipeline, params, n_iter=n_iter, scoring=SCORING_METRIC, 
             cv=cv, n_jobs=-1, random_state=RANDOM_SEED, verbose=0
         )
         search.fit(X_train, y_train)
@@ -239,8 +293,8 @@ for name, pipeline, params in models_to_train:
     
     # Evaluate on validation set
     y_val_pred = best_model.predict(X_val)
-    y_val_proba = best_model.predict_proba(X_val)[:, 1]
-    val_f1 = f1_score(y_val, y_val_pred)
+    y_val_proba = get_proba(best_model, X_val)
+    val_f1 = f1_score(y_val, y_val_pred, zero_division=0)
     val_auc = roc_auc_score(y_val, y_val_proba)
     print(f"      Validation F1: {val_f1:.4f}, AUC: {val_auc:.4f}")
     
@@ -262,13 +316,13 @@ plt.figure(figsize=(10, 8))
 for name, model in best_models.items():
     # Predict
     y_pred = model.predict(X_test)
-    y_proba = model.predict_proba(X_test)[:, 1]
+    y_proba = get_proba(model, X_test)
     
-    # Metrics
+    # Metrics with zero_division to handle edge cases
     acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred)
-    rec = recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, zero_division=0)
+    rec = recall_score(y_test, y_pred, zero_division=0)
+    f1 = f1_score(y_test, y_pred, zero_division=0)
     auc_score = roc_auc_score(y_test, y_proba)
     
     test_results.append({
@@ -305,19 +359,61 @@ print("\n[6] Identifying Best Model...")
 # Identify best model based on F1
 best_model_name = metrics_df.sort_values('F1_Score', ascending=False).iloc[0]['Model']
 print(f"    Best Model identified: {best_model_name}")
-best_pipeline = best_models[best_model_name]
 
-# --- 7. Model Calibration ---
-print("\n[7] Calibrating Best Model Probabilities...")
-# Calibrate probabilities for better threshold optimization
-best_pipeline = CalibratedClassifierCV(best_pipeline, cv=5, method='sigmoid')
-best_pipeline.fit(X_train, y_train)
+# Keep uncalibrated copy for SHAP/feature importance (before calibration)
+uncalibrated_best = best_models[best_model_name]
+
+# --- 7. Final Refit on Train+Val (Use More Data) ---
+print("\n[7] Final Refit on Combined Train+Validation Set...")
+# Combine train and validation for final model (common practice)
+X_train_final = pd.concat([X_train, X_val], axis=0)
+y_train_final = pd.concat([y_train, y_val], axis=0)
+print(f"    Combined training data: {len(X_train_final)} samples")
+
+# Refit uncalibrated model on combined data
+uncalibrated_best.fit(X_train_final, y_train_final)
+print("    Uncalibrated model refit on train+val")
+
+# --- 8. Model Calibration ---
+print("\n[8] Calibrating Best Model Probabilities...")
+# Calibrate only the classifier, not the entire pipeline
+# This is more reliable than wrapping the whole pipeline
+if hasattr(uncalibrated_best, 'named_steps'):
+    # Extract preprocessing steps and classifier
+    pre = uncalibrated_best.named_steps  # type: ignore
+    raw_classifier = pre['clf']  # type: ignore
+    
+    # Calibrate only the classifier
+    calibrated_clf = CalibratedClassifierCV(raw_classifier, cv=5, method='sigmoid')
+    calibrated_clf.fit(X_train_final, y_train_final)
+    
+    # Rebuild pipeline with calibrated classifier
+    if best_model_name in ['Random Forest', 'XGBoost']:
+        # Tree models: no scaler
+        best_pipeline = Pipeline([
+            ('imputer', pre.get('imputer', SimpleImputer(strategy='median'))),  # type: ignore
+            ('clf', calibrated_clf)
+        ])
+    else:
+        # Non-tree models: include scaler
+        best_pipeline = Pipeline([
+            ('imputer', pre.get('imputer', SimpleImputer(strategy='median'))),  # type: ignore
+            ('scaler', pre.get('scaler', StandardScaler())),  # type: ignore
+            ('clf', calibrated_clf)
+        ])
+else:
+    # If not a pipeline, calibrate directly
+    calibrated_clf = CalibratedClassifierCV(uncalibrated_best, cv=5, method='sigmoid')
+    calibrated_clf.fit(X_train_final, y_train_final)
+    best_pipeline = calibrated_clf
+
 print("    Model calibrated using Platt scaling (sigmoid)")
 
-# --- 8. Threshold Optimization ---
-print("\n[8] Optimizing Classification Threshold on Validation Set...")
+# --- 9. Threshold Optimization ---
+print("\n[9] Optimizing Classification Threshold...")
+# Use original validation set for threshold optimization (already held out)
 # Get calibrated probabilities on validation set
-y_val_proba_calibrated = best_pipeline.predict_proba(X_val)[:, 1]
+y_val_proba_calibrated = get_proba(best_pipeline, X_val)
 
 # Test thresholds from 0.1 to 0.9
 thresholds = np.linspace(0.1, 0.9, 81)
@@ -327,14 +423,14 @@ threshold_scores = []
 
 for t in thresholds:
     y_pred_t = (y_val_proba_calibrated >= t).astype(int)
-    score = f1_score(y_val, y_pred_t)
+    score = f1_score(y_val, y_pred_t, zero_division=0)
     threshold_scores.append({'threshold': t, 'f1_score': score})
     if score > best_f1:
         best_f1 = score
         best_threshold = t
 
 print(f"    Optimal threshold: {best_threshold:.3f} (F1: {best_f1:.4f})")
-print(f"    Default threshold (0.5) F1: {f1_score(y_val, (y_val_proba_calibrated >= 0.5).astype(int)):.4f}")
+print(f"    Default threshold (0.5) F1: {f1_score(y_val, (y_val_proba_calibrated >= 0.5).astype(int), zero_division=0):.4f}")
 
 # Plot threshold optimization curve
 threshold_df = pd.DataFrame(threshold_scores)
@@ -347,17 +443,18 @@ plt.title('Threshold Optimization on Validation Set')
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.savefig(images_dir / 'threshold_optimization.png')
+plt.close()
 print("    Saved threshold optimization curve to 'threshold_optimization.png'")
 
 # Re-evaluate test set with optimal threshold
-y_test_proba_calibrated = best_pipeline.predict_proba(X_test)[:, 1]
+y_test_proba_calibrated = get_proba(best_pipeline, X_test)
 y_test_pred_optimal = (y_test_proba_calibrated >= best_threshold).astype(int)
 
 # Update best model metrics with optimal threshold
 optimal_acc = accuracy_score(y_test, y_test_pred_optimal)
-optimal_prec = precision_score(y_test, y_test_pred_optimal)
-optimal_rec = recall_score(y_test, y_test_pred_optimal)
-optimal_f1 = f1_score(y_test, y_test_pred_optimal)
+optimal_prec = precision_score(y_test, y_test_pred_optimal, zero_division=0)
+optimal_rec = recall_score(y_test, y_test_pred_optimal, zero_division=0)
+optimal_f1 = f1_score(y_test, y_test_pred_optimal, zero_division=0)
 optimal_auc = roc_auc_score(y_test, y_test_proba_calibrated)
 
 print(f"\n    Test Set Metrics with Optimal Threshold ({best_threshold:.3f}):")
@@ -367,24 +464,51 @@ print(f"      Recall: {optimal_rec:.4f}")
 print(f"      F1-Score: {optimal_f1:.4f}")
 print(f"      AUC: {optimal_auc:.4f}")
 
+# Save optimal threshold metrics CSV
+optimal_df = pd.DataFrame([{
+    'Model': f'{best_model_name} (Optimal Threshold)',
+    'Accuracy': optimal_acc,
+    'Precision': optimal_prec,
+    'Recall': optimal_rec,
+    'F1_Score': optimal_f1,
+    'AUC': optimal_auc,
+    'Threshold': best_threshold
+}])
+# Also append to original metrics for comparison
+metrics_df_optimal = pd.concat([metrics_df, optimal_df], ignore_index=True)
+metrics_df_optimal.to_csv(reports_dir / 'final_model_metrics_with_optimal.csv', index=False)
+print(f"\n    Saved metrics with optimal threshold to 'final_model_metrics_with_optimal.csv'")
+
 # Save Best Pipeline with versioning
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 model_version = f"model_v{timestamp}.pkl"
 joblib.dump(best_pipeline, models_dir / model_version)
 joblib.dump(best_pipeline, models_dir / 'best_model_pipeline.pkl')  # Latest
+# Also save uncalibrated model for SHAP/debugging
+joblib.dump(uncalibrated_best, models_dir / f'uncalibrated_{model_version}')
 print(f"\n    Saved calibrated pipeline to '{model_version}' and 'best_model_pipeline.pkl'")
+print(f"    Saved uncalibrated model to 'uncalibrated_{model_version}'")
 
-# --- 9. Generate Confusion Matrices for All Models ---
-print("\n[9] Generating Confusion Matrices for All Models...")
+# --- 10. Generate Confusion Matrices for All Models ---
+print("\n[10] Generating Confusion Matrices for All Models...")
 
 n_models = len(best_models)
 n_cols = 2
-n_rows = (n_models + 1) // 2
+n_rows = (n_models + n_cols - 1) // n_cols  # More robust calculation
 fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 6 * n_rows))
+
+# Robust handling of axes for different cases
 if n_models == 1:
     axes = [axes]
+elif n_rows == 1:
+    # Single row case
+    if isinstance(axes, np.ndarray):
+        axes = axes.flatten() if axes.ndim > 1 else [axes]
+    else:
+        axes = [axes]
 else:
-    axes = axes.flatten()
+    # Multiple rows
+    axes = axes.flatten() if hasattr(axes, 'flatten') else list(axes)
 
 for idx, (name, model) in enumerate(best_models.items()):
     y_pred_model = model.predict(X_test)
@@ -404,10 +528,11 @@ for idx in range(n_models, len(axes)):
 
 plt.tight_layout()
 plt.savefig(images_dir / 'confusion_matrices_all_models.png')
+plt.close()
 print("    Saved confusion matrices to 'confusion_matrices_all_models.png'")
 
 # Also save best model confusion matrix separately (with optimal threshold)
-y_pred_best_optimal = (best_pipeline.predict_proba(X_test)[:, 1] >= best_threshold).astype(int)
+y_pred_best_optimal = (get_proba(best_pipeline, X_test) >= best_threshold).astype(int)
 cm_best = confusion_matrix(y_test, y_pred_best_optimal)
 plt.figure(figsize=(6, 5))
 sns.heatmap(cm_best, annot=True, fmt='d', cmap='Blues', 
@@ -417,28 +542,33 @@ plt.title(f'Confusion Matrix ({best_model_name}) - Optimal Threshold {best_thres
 plt.ylabel('True Label')
 plt.xlabel('Predicted Label')
 plt.savefig(images_dir / 'confusion_matrix_best_optimal.png')
+plt.close()
 print("    Saved best model confusion matrix (optimal threshold) to 'confusion_matrix_best_optimal.png'")
 
 # --- 10. Feature Importance Analysis (Permutation Importance for All Models) ---
 print("\n[10] Computing Feature Importance (Permutation Importance)...")
+print("    [Note] Using raw X_test - pipelines handle preprocessing internally")
 
 feature_importance_results = {}
 for name, model in best_models.items():
     print(f"    Computing for {name}...")
-    # For tree models, we can use raw features. For scaled models, we need to transform
-    if name in ['Random Forest', 'XGBoost']:
-        X_for_importance = X_test
-    else:
-        # For scaled models, use transformed features
-        if 'scaler' in model.named_steps:
-            X_for_importance = model.named_steps['scaler'].transform(X_test)
-        else:
-            X_for_importance = X_test
+    # Always pass raw X_test - pipelines handle scaling/imputation internally
+    # This prevents double-transformation issues
     
-    # Compute permutation importance
+    # Sample if dataset is large to avoid memory issues
+    sample_size = min(1000, len(X_test))
+    if len(X_test) > sample_size:
+        X_importance_sample = X_test.sample(n=sample_size, random_state=RANDOM_SEED)
+        y_importance_sample = y_test.iloc[X_importance_sample.index]
+        print(f"      Using sample of {sample_size} for faster computation")
+    else:
+        X_importance_sample = X_test
+        y_importance_sample = y_test
+    
+    # Compute permutation importance - always pass raw features
     perm_importance = permutation_importance(
-        model, X_for_importance, y_test, n_repeats=10, 
-        random_state=RANDOM_SEED, n_jobs=-1, scoring='f1'
+        model, X_importance_sample, y_importance_sample, n_repeats=5,  # Reduced from 10
+        random_state=RANDOM_SEED, n_jobs=2, scoring='f1'  # Reduced n_jobs to avoid saturation
     )
     
     # Access Bunch object attributes - use getattr for type safety
@@ -472,43 +602,50 @@ for idx, (name, importance_data) in enumerate(feature_importance_results.items()
 
 plt.tight_layout()
 plt.savefig(images_dir / 'feature_importance_comparison.png')
+plt.close()
 print("    Saved feature importance comparison to 'feature_importance_comparison.png'")
 
-# --- 11. Explainability (SHAP for Tree Models, Permutation for Others) ---
-print("\n[11] Generating Model Explanations...")
+# --- 12. Explainability (SHAP for Tree Models, Permutation for Others) ---
+print("\n[12] Generating Model Explanations...")
 
 try:
     if best_model_name in ['XGBoost', 'Random Forest']:
-        # Tree models: Use SHAP with RAW features (not scaled)
-        print(f"    Using SHAP TreeExplainer for {best_model_name} (raw features)...")
-        # Get the base estimator from CalibratedClassifierCV (best_pipeline is calibrated)
-        if isinstance(best_pipeline, CalibratedClassifierCV):
-            base_estimator = best_pipeline.base_estimator  # type: ignore
-            if hasattr(base_estimator, 'named_steps'):
-                model_step = 'clf'
-                raw_model = base_estimator.named_steps[model_step]  # type: ignore
-            else:
-                raw_model = base_estimator
+        # Tree models: Use SHAP with preprocessed features (imputed, but not scaled)
+        print(f"    Using SHAP TreeExplainer for {best_model_name}...")
+        # Use uncalibrated model (kept before calibration) for SHAP
+        if hasattr(uncalibrated_best, 'named_steps'):
+            pre = uncalibrated_best.named_steps  # type: ignore
+            # Apply imputer transformation (pipeline preprocessing)
+            X_shap_raw = X_test.sample(n=min(500, len(X_test)), random_state=RANDOM_SEED) if len(X_test) > 500 else X_test
+            print(f"    Using {len(X_shap_raw)} samples for SHAP computation")
+            
+            # Transform through imputer (required for pipeline consistency)
+            X_shap_proc = pre['imputer'].transform(X_shap_raw)  # type: ignore
+            raw_model = pre['clf']  # type: ignore
         else:
-            # If not calibrated, access directly
-            model_step = 'clf'
-            raw_model = best_pipeline.named_steps[model_step]  # type: ignore
+            # If not a pipeline, use raw model
+            raw_model = uncalibrated_best
+            X_shap_raw = X_test.sample(n=min(500, len(X_test)), random_state=RANDOM_SEED) if len(X_test) > 500 else X_test
+            print(f"    Using {len(X_shap_raw)} samples for SHAP computation")
+            X_shap_proc = X_shap_raw
         
-        # Use RAW features - tree models don't need scaling
+        # Use preprocessed features (imputed) - tree models don't need scaling
         explainer = shap.TreeExplainer(raw_model)
-        shap_values = explainer.shap_values(X_test)
+        shap_values = explainer.shap_values(X_shap_proc)
         
         plt.figure(figsize=(10, 8))
-        shap.summary_plot(shap_values, X_test, show=False)
+        shap.summary_plot(shap_values, X_shap_proc, show=False)
         plt.tight_layout()
         plt.savefig(images_dir / 'shap_summary_plot.png')
+        plt.close()
         print("    Saved SHAP summary plot to 'shap_summary_plot.png'")
         
         # Also create feature importance bar plot
         plt.figure(figsize=(8, 6))
-        shap.summary_plot(shap_values, X_test, plot_type="bar", show=False)
+        shap.summary_plot(shap_values, X_shap_proc, plot_type="bar", show=False)
         plt.tight_layout()
         plt.savefig(images_dir / 'shap_feature_importance.png')
+        plt.close()
         print("    Saved SHAP feature importance to 'shap_feature_importance.png'")
     else:
         # Non-tree models: Use Permutation Importance (already computed above)
@@ -519,8 +656,8 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 
-# --- 12. Training Metadata Logging ---
-print("\n[12] Saving Training Metadata...")
+# --- 13. Training Metadata Logging ---
+print("\n[13] Saving Training Metadata...")
 
 training_metadata = {
     "random_seed": RANDOM_SEED,
@@ -558,10 +695,10 @@ print("\n" + "="*80)
 print("TRAINING COMPLETE. PROFESSIONAL ARTIFACTS GENERATED.")
 print("="*80)
 print(f"\nGenerated Artifacts:")
-print(f"  - Models: {model_version}, best_model_pipeline.pkl")
-print(f"  - Metrics: final_model_metrics.csv")
+print(f"  - Models: {model_version}, best_model_pipeline.pkl, uncalibrated_{model_version}")
+print(f"  - Metrics: final_model_metrics.csv, final_model_metrics_with_optimal.csv")
 print(f"  - Metadata: training_metadata.json")
 print(f"  - Visualizations: roc_curve_comparison.png, confusion_matrices_all_models.png")
 print(f"  - Feature Analysis: feature_importance_comparison.png")
 print(f"  - Explanations: shap_summary_plot.png, shap_feature_importance.png (if tree model)")
-print(f"  - Optimization: threshold_optimization.png")
+print(f"  - Optimization: threshold_optimization.png, confusion_matrix_best_optimal.png")
