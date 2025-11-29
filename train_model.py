@@ -24,6 +24,7 @@ import random
 from pathlib import Path
 from time import time
 from datetime import datetime
+from matplotlib.axes import Axes
 
 # Scikit-Learn Imports
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
@@ -366,8 +367,8 @@ uncalibrated_best = best_models[best_model_name]
 # --- 7. Final Refit on Train+Val (Use More Data) ---
 print("\n[7] Final Refit on Combined Train+Validation Set...")
 # Combine train and validation for final model (common practice)
-X_train_final = pd.concat([X_train, X_val], axis=0)
-y_train_final = pd.concat([y_train, y_val], axis=0)
+X_train_final = pd.concat([X_train, X_val], axis=0, ignore_index=True)  # type: ignore
+y_train_final = pd.concat([y_train, y_val], axis=0, ignore_index=True)  # type: ignore
 print(f"    Combined training data: {len(X_train_final)} samples")
 
 # Refit uncalibrated model on combined data
@@ -497,24 +498,17 @@ n_cols = 2
 n_rows = (n_models + n_cols - 1) // n_cols  # More robust calculation
 fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 6 * n_rows))
 
-# Robust handling of axes for different cases
-if n_models == 1:
-    axes = [axes]
-elif n_rows == 1:
-    # Single row case
-    if isinstance(axes, np.ndarray):
-        axes = axes.flatten() if axes.ndim > 1 else [axes]
-    else:
-        axes = [axes]
+# Normalize axes into a flat list of Axes objects
+if isinstance(axes, np.ndarray):
+    axes_list: list[Axes] = axes.flatten().tolist()
 else:
-    # Multiple rows
-    axes = axes.flatten() if hasattr(axes, 'flatten') else list(axes)
+    axes_list = [axes]
 
 for idx, (name, model) in enumerate(best_models.items()):
     y_pred_model = model.predict(X_test)
     cm = confusion_matrix(y_test, y_pred_model)
     
-    ax = axes[idx]
+    ax = axes_list[idx]
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
                 xticklabels=['Benign', 'Malicious'], 
                 yticklabels=['Benign', 'Malicious'])
@@ -523,8 +517,8 @@ for idx, (name, model) in enumerate(best_models.items()):
     ax.set_xlabel('Predicted Label')
 
 # Remove extra subplots
-for idx in range(n_models, len(axes)):
-    fig.delaxes(axes[idx])
+for idx in range(n_models, len(axes_list)):
+    fig.delaxes(axes_list[idx])
 
 plt.tight_layout()
 plt.savefig(images_dir / 'confusion_matrices_all_models.png')
@@ -550,20 +544,23 @@ print("\n[10] Computing Feature Importance (Permutation Importance)...")
 print("    [Note] Using raw X_test - pipelines handle preprocessing internally")
 
 feature_importance_results = {}
+X_test_df = X_test if isinstance(X_test, pd.DataFrame) else pd.DataFrame(X_test)
+y_test_series = y_test if isinstance(y_test, pd.Series) else pd.Series(y_test)
+
 for name, model in best_models.items():
     print(f"    Computing for {name}...")
     # Always pass raw X_test - pipelines handle scaling/imputation internally
     # This prevents double-transformation issues
     
     # Sample if dataset is large to avoid memory issues
-    sample_size = min(1000, len(X_test))
-    if len(X_test) > sample_size:
-        X_importance_sample = X_test.sample(n=sample_size, random_state=RANDOM_SEED)
-        y_importance_sample = y_test.iloc[X_importance_sample.index]
+    sample_size = min(1000, len(X_test_df))
+    if len(X_test_df) > sample_size:
+        X_importance_sample = X_test_df.sample(n=sample_size, random_state=RANDOM_SEED)
+        y_importance_sample = y_test_series.iloc[X_importance_sample.index]
         print(f"      Using sample of {sample_size} for faster computation")
     else:
-        X_importance_sample = X_test
-        y_importance_sample = y_test
+        X_importance_sample = X_test_df
+        y_importance_sample = y_test_series
     
     # Compute permutation importance - always pass raw features
     perm_importance = permutation_importance(
