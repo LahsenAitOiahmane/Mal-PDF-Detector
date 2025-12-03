@@ -16,7 +16,7 @@ All results are saved under the local `results/` folder so nothing leaks outside
 
 ### 1.1. Source dataset: CIC‑Evasive‑PDFMal2022
 
-You should first download the benign and malicious PDF files from the **CIC‑Evasive‑PDFMal2022** dataset (or a similar PDF corpus) and place them under a structure like:
+First download the benign and malicious PDF files from the **CIC‑Evasive‑PDFMal2022** dataset (or a similar PDF corpus) and place them under a structure like:
 
 - `Data/Benign/` – benign PDF files (with `.pdf` extension)
 - `Data/Malicious/` – malicious PDF files (often without `.pdf` extension)
@@ -77,7 +77,7 @@ If paths differ from `Data/Benign` and `Data/Malicious`, edit `main()` in `pdf_a
    - `results/reports/` – text/markdown reports
 
 3. **Zero‑variance check**
-   - Identifies features that are constant (e.g., always 0) and thus **useless** for modeling.
+  - Identifies features that are constant (e.g., always 0) and thus **not useful** for modeling.
 
 4. **Feature engineering (before analysis)**
    - Adds **engineered features**:
@@ -238,10 +238,10 @@ Key outputs:
 - `results/images/roc_curve_comparison.png` – ROC curves for all models.
 - `results/reports/classification_reports.txt` – pretty printed classification reports.
 
-### 4.6. Best model selection
+### 4.6. Best Model Selection
 
-- The **best model** is chosen by **highest F1‑Score** on the test set.
-- In your current run, **XGBoost** is typically chosen as best.
+- The **best model** is chosen by the **highest F1‑Score** on the test set.
+- In our runs, **XGBoost** is typically selected as the best performer.
 
 ### 4.7. Threshold optimization (on validation set only)
 
@@ -349,25 +349,27 @@ From the `Mal-PDF-Detector` directory:
 
 1. **Extract raw features from PDFs**
 
-```bash
+Windows PowerShell:
+
+```powershell
 python pdf_analyzer.py
 ```
 
 2. **Run EDA and generate recommendations**
 
-```bash
+```powershell
 python eda_analysis.py
 ```
 
 3. **Create final optimized dataset**
 
-```bash
+```powershell
 python create_final_dataset.py
 ```
 
 4. **Train models and generate all reports**
 
-```bash
+```powershell
 python train_model.py
 ```
 
@@ -375,14 +377,57 @@ After this, you will find all artifacts under `results/` (CSV, images, reports, 
 
 ---
 
-## 7. Glossary of Key Terms
+## 7. Methods, Models, and Techniques Explained
 
-This section briefly explains all important ML / data‑analysis terms used in the scripts and reports.
+This section explains the core machine learning concepts, techniques, and algorithms used in this project.
 
-- **EDA (Exploratory Data Analysis)**  
-  Early‑stage analysis of a dataset to understand distributions, relationships, anomalies, and to inform feature engineering and modeling decisions. Includes plots, summary statistics, and correlation analysis.
+- **EDA (Exploratory Data Analysis):** Structured exploration of the dataset to understand feature distributions, class differences, anomalies, and relationships (correlations). Results guide feature engineering and selection.
+- **Feature Engineering:** Creating more informative features from raw data, e.g., `log_file_size` to normalize file size and `entropy_density` to detect packed/obfuscated content.
+- **Train/Validation/Test Split (70/15/15):** Stratified partitioning that keeps class balance across splits. The test split remains strictly unseen for the final evaluation; validation is used for model selection checks and threshold tuning.
+- **Pipelines:** Scikit‑learn `Pipeline` objects chain preprocessing (imputation, scaling) with a classifier to prevent data leakage and keep reproducibility.
+- **Imputation:** Filling missing values (NaN) safely inside the pipeline with `SimpleImputer` to avoid using information from validation/test during training.
+- **Scaling:** `StandardScaler` is applied to linear models and neural networks. Tree‑based models (Random Forest, XGBoost) are scale‑invariant and do not use scaling.
+- **Cross‑Validation (Stratified K‑Fold):** Robust model evaluation across multiple folds while preserving class proportions; reduces variance in performance estimates.
+- **RandomizedSearchCV:** Efficient hyperparameter search that samples from specified ranges/grids and scores using F1 across CV folds.
+- **Threshold Optimization:** Selecting a decision threshold on the validation set that maximizes F1 rather than defaulting to 0.5, which can improve precision/recall trade‑offs.
+- **Calibration (Platt Scaling):** Using `CalibratedClassifierCV(method='sigmoid')` to produce well‑calibrated probabilities—important in security contexts.
+- **Permutation Importance:** Model‑agnostic feature importance by measuring performance drop when a feature’s values are randomly shuffled.
+- **SHAP (TreeExplainer):** Explains individual predictions and global feature influence for tree models, helping validate model behavior.
 
-- **Feature engineering**  
+### Reproducibility
+
+- **Random Seed:** A fixed seed (`42`) is set for NumPy, Python’s `random`, and model components to make results repeatable.
+- **Deterministic Splits:** Stratified splitting ensures consistent class ratios across train/validation/test.
+- **Environment:** Use the provided `requirements.txt`; versions can affect plots and minor metrics. Record the environment when sharing results.
+
+### Algorithms Used
+
+- **Logistic Regression:** Linear classifier with regularization; fast baseline that works well when features are informative and roughly linearly separable after scaling.
+- **Support Vector Machine (SVM):** Maximizes the margin between classes; `rbf` or `linear` kernels used. `probability=True` enables ROC‑AUC and thresholding.
+- **Random Forest:** Ensemble of decision trees with bagging; robust to noise and captures nonlinear interactions; scale‑invariant.
+- **XGBoost (Gradient Boosted Trees):** Powerful boosting algorithm with regularization and class‑imbalance handling via `scale_pos_weight`; typically achieves top performance in tabular problems.
+- **Neural Network (MLPClassifier):** Feed‑forward network with `relu/tanh` activations; benefits from scaling and early stopping to avoid overfitting.
+
+### Key Metrics
+
+- **Accuracy:** Overall correctness; can be misleading with class imbalance.
+- **Precision:** Of predicted malware, proportion that is truly malware.
+- **Recall:** Proportion of actual malware correctly detected.
+- **F1‑Score:** Harmonic mean of precision and recall; optimized in this pipeline.
+- **ROC‑AUC:** Threshold‑independent measure of separability across all thresholds.
+
+## 8. Glossary of Key Terms
+
+Brief definitions of important terms used in scripts and reports.
+
+- **Entropy:** Shannon entropy of file bytes; higher values indicate more randomness/complexity.
+- **Entropy Density:** `entropy / (log_file_size + 1)`; highlights small, high‑entropy (often packed) files.
+- **OpenAction:** PDF keyword that triggers actions upon opening; strong malware indicator.
+- **Object Streams (ObjStm):** PDF mechanism to compress object data; negatively correlated with malware in this dataset.
+- **Scale Pos Weight:** XGBoost parameter to address class imbalance by weighting the minority class.
+- **Data Leakage:** Using information from validation/test during training; prevented via pipelines and proper splitting.
+
+
   Creating new input variables (features) from raw data to make patterns easier for models to learn. Examples here: `log_file_size`, `entropy_density`.
 
 - **Cohen’s D (effect size)**  

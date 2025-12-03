@@ -4,7 +4,7 @@
 
 This document provides comprehensive feature recommendations based on Exploratory Data Analysis (EDA) of 23,910 PDF files (9,107 benign, 14,803 malicious). The analysis identified the most predictive features, detected redundancy, and recommends an optimized feature set for machine learning model training.
 
-**Key Discovery**: Engineered features using **logarithmic scaling** (`log_file_size`) and **density ratios** (`entropy_density`) significantly outperform raw features, revealing patterns that linear scaling hides.
+**Key Finding**: Engineered features using **logarithmic scaling** (`log_file_size`) and **density ratios** (`entropy_density`) significantly outperform raw features, revealing patterns that linear scaling hides.
 
 ---
 
@@ -13,12 +13,12 @@ This document provides comprehensive feature recommendations based on Explorator
 ### Key Findings from Box Plots and Violin Plots
 
 **Visual Analysis Results:**
-- **keyword_OpenAction**: Shows exceptional separation - malicious PDFs almost always contain this (median=1) while benign rarely do (median=0)
-- **log_file_size**: Logarithmic transformation reveals that benign PDFs are significantly larger (median=11.24) than malicious (median=9.18) - **this is the 2nd strongest feature!**
-- **entropy_density**: Engineered feature showing high entropy in small files indicates packed malware (median: benign=0.626, malicious=0.764)
-- **pdf_version**: Malicious PDFs tend to use older versions (median=1.3) vs benign (median=1.4)
-- **keyword_JS** and **keyword_JavaScript**: Both show clear separation, with malicious PDFs more likely to contain these keywords
-- **file_size**: Raw size shows malicious PDFs are smaller (median=9,737 bytes) vs benign (median=75,923 bytes), but log transformation is more predictive
+- **keyword_OpenAction**: Shows exceptional separation—malicious PDFs often contain this (median=1) while benign rarely do (median=0).
+- **log_file_size**: Log transformation reveals benign PDFs are significantly larger (median=11.24) than malicious (median=9.18); this is among the strongest features.
+- **entropy_density**: High entropy in small files indicates packed malware (median: benign=0.626, malicious=0.764).
+- **pdf_version**: Malicious PDFs tend to use older versions (median=1.3) vs benign (median=1.4).
+- **keyword_JS** and **keyword_JavaScript**: Both show clear separation; malicious PDFs more often contain these keywords.
+- **file_size**: Raw size shows malicious PDFs are smaller (median=9,737 bytes) vs benign (median=75,923 bytes), but the log transformation is more predictive.
 
 ### Separation Metrics (Cohen's D)
 
@@ -81,20 +81,20 @@ This document provides comprehensive feature recommendations based on Explorator
 **Critical Findings:**
 
 1. **keyword_sum ↔ keyword_density**: r = 0.997 (|r| > 0.95)
-   - **Recommendation**: **EXCLUDE BOTH** - Both have negligible correlation with target (r = -0.011 and -0.009)
-   - **Rationale**: Despite high inter-correlation, neither provides predictive power
+   - **Recommendation**: **Exclude both**—both have negligible correlation with the target (r = -0.011 and -0.009).
+   - **Rationale**: Despite high inter-correlation, neither provides predictive power.
 
 2. **keyword_sum ↔ keyword_URI**: r = 0.993 (|r| > 0.95)
-   - **Recommendation**: Exclude both (keyword_sum is weak, keyword_URI has zero separation)
+   - **Recommendation**: Exclude both (keyword_sum is weak; keyword_URI shows zero separation).
 
 3. **keyword_density ↔ keyword_URI**: r = 0.986 (|r| > 0.95)
-   - **Recommendation**: Exclude both (both are weak/non-predictive)
+   - **Recommendation**: Exclude both (both are weak/non-predictive).
 
 4. **keyword_JS ↔ keyword_JavaScript**: r = 0.991 (|r| > 0.95)
-   - **Recommendation**: Keep `keyword_JavaScript`, exclude `keyword_JS` (higher target correlation: 0.155 vs 0.118)
+   - **Recommendation**: Keep `keyword_JavaScript`; exclude `keyword_JS` (higher target correlation: 0.155 vs 0.118).
 
 5. **entropy ↔ entropy_density**: r = 0.808 (moderate correlation)
-   - **Recommendation**: Keep `entropy_density`, consider `entropy` as optional (entropy_density has Cohen's D = 1.224 vs entropy's 0.135)
+   - **Recommendation**: Keep `entropy_density`; consider `entropy` as optional (entropy_density Cohen's D = 1.224 vs entropy's 0.135).
 
 ---
 
@@ -106,75 +106,75 @@ This document provides comprehensive feature recommendations based on Explorator
    - Cohen's D: **2.153** (vs file_size: 0.243)
    - Target correlation: **r = -0.649** (vs file_size: -0.131)
    - **Verdict**: **HIGHLY RECOMMENDED** - Logarithmic transformation reveals patterns hidden in raw file size
-   - **Rationale**: Malware PDFs are often tiny (KBs) while benign ones are large (MBs). Log scaling normalizes this difference and dramatically improves separation.
+   - **Rationale**: Malware PDFs are often small (KBs) while benign ones are larger (MBs). Log scaling normalizes this difference and improves separation.
 
 2. **entropy_density** (entropy / log_file_size)
    - Cohen's D: **1.224** (vs entropy: 0.135)
    - Target correlation: **r = 0.312** (vs entropy: -0.113)
    - **Verdict**: **HIGHLY RECOMMENDED** - Captures packed/compressed malware signatures
-   - **Rationale**: High entropy in small files indicates packed or obfuscated malware. This ratio feature is 9x more predictive than raw entropy.
+   - **Rationale**: High entropy in small files indicates packed or obfuscated malware. This ratio feature is far more predictive than raw entropy.
 
 3. **keyword_density** (keyword_sum / log_file_size)
    - Cohen's D: 0.041
    - Target correlation: r = -0.009
    - **Verdict**: **NOT RECOMMENDED** - Despite initial hypothesis, this feature shows negligible predictive power
-   - **Rationale**: The weak correlation suggests that keyword density doesn't capture meaningful patterns in this dataset.
+   - **Rationale**: The weak correlation suggests keyword density does not capture meaningful patterns in this dataset.
 
 4. **keyword_sum** (sum of all keyword counts)
    - Cohen's D: 0.023
    - Target correlation: r = -0.011
-   - **Verdict**: **NOT RECOMMENDED** - Negligible predictive power
+   - **Verdict**: **Not recommended**—negligible predictive power.
 
 5. **pdf_version** (numeric conversion)
    - Cohen's D: 0.350
    - Target correlation: r = -0.289
-   - **Verdict**: **RECOMMENDED** - Malware often exploits older PDF versions (1.3 vs 1.4)
+   - **Verdict**: **Recommended**—malware often exploits older PDF versions (1.3 vs 1.4).
 
 ---
 
 ## 4. Final Feature Recommendations
 
-### ✅ **PRIORITY 1: Must Include (High Predictive Power)**
+### ✅ **Priority 1: Must Include (High Predictive Power)**
 
 1. **keyword_OpenAction**
    - Cohen's D: 2.568 (exceptional separation)
    - Target correlation: r = 0.595 → Malware
-   - **Justification**: Single most predictive feature. Malicious PDFs almost always contain this keyword (median=1) while benign PDFs rarely do (median=0). This alone can achieve ~75-80% accuracy.
+   - **Justification**: Single most predictive feature. Malicious PDFs commonly contain this keyword (median=1) while benign PDFs rarely do (median=0).
 
 2. **log_file_size** (engineered feature)
    - Cohen's D: 2.153 (very large effect)
    - Target correlation: r = -0.649 → Benign
-   - **Justification**: Logarithmic transformation of file_size reveals that benign PDFs are significantly larger. This is the 2nd strongest feature and provides complementary information to keyword_OpenAction.
+   - **Justification**: Logarithmic transformation of file_size reveals that benign PDFs are significantly larger. Provides complementary information to `keyword_OpenAction`.
 
 3. **entropy_density** (engineered feature)
    - Cohen's D: 1.224 (large effect)
    - Target correlation: r = 0.312 → Malware
-   - **Justification**: Captures packed/obfuscated malware signatures. High entropy in small files is a strong indicator of malicious content. This engineered feature is 9x more predictive than raw entropy.
+   - **Justification**: Captures packed/obfuscated malware signatures. High entropy in small files is a strong indicator of malicious content.
 
 4. **pdf_version**
    - Cohen's D: 0.350
    - Target correlation: r = -0.289 → Benign
-   - **Justification**: Malware often exploits older PDF versions. Converting to numeric reveals that benign PDFs tend to use newer versions (median=1.4) vs malicious (median=1.3).
+   - **Justification**: Malware often exploits older PDF versions. Converting to numeric reveals benign PDFs tend to use newer versions (median=1.4) vs malicious (median=1.3).
 
-### ✅ **PRIORITY 2: Should Include (Moderate Predictive Power)**
+### ✅ **Priority 2: Should Include (Moderate Predictive Power)**
 
 5. **keyword_JavaScript**
    - Cohen's D: 0.276
    - Target correlation: r = 0.155 → Malware
-   - **Justification**: Shows clear separation between classes. **Keep this, exclude `keyword_JS`** due to higher target correlation and to avoid redundancy (r = 0.991 with keyword_JS).
+   - **Justification**: Shows clear separation between classes. Keep this; exclude `keyword_JS` due to higher target correlation and redundancy (r = 0.991 with `keyword_JS`).
 
 6. **entropy**
    - Cohen's D: 0.135
    - Target correlation: r = -0.113 → Benign
-   - **Justification**: While effect size is small and entropy_density is much better, raw entropy may provide additional context in ensemble models. Note: `entropy` and `entropy_density` are moderately correlated (r = 0.808), but both can be useful.
+   - **Justification**: While effect size is small and `entropy_density` is stronger, raw entropy may provide complementary context in ensemble models. Note: `entropy` and `entropy_density` are moderately correlated (r = 0.808).
 
-### 🔍 **HIDDEN GEM: Feature Missed by Cohen's D**
+### 🔍 **Hidden Gem: Feature Missed by Cohen's D**
 
 7. **keyword_ObjStm** ⭐
    - Cohen's D: 0.000 (zero median difference - missed by univariate analysis!)
    - Target correlation: **r = -0.238** → Benign (5th strongest correlation!)
    - **Justification**: This is a perfect example of why correlation analysis complements separation metrics. Despite zero median difference, `keyword_ObjStm` has the **5th strongest correlation** with the target variable. Benign PDFs tend to have more object streams (compression/structure indicator), making this a valuable feature that univariate analysis alone would miss.
-   - **Recommendation**: **INCLUDE** - This feature provides unique signal that complements other features, especially in ensemble models.
+   - **Recommendation**: **Include**—provides unique signal that complements other features, especially in ensemble models.
 
 ### ❌ **EXCLUDE: Low/No Predictive Power**
 
@@ -216,7 +216,7 @@ This document provides comprehensive feature recommendations based on Explorator
 
 **Note on Redundancy:**
 - **Exclude `keyword_JS`**: Redundant with `keyword_JavaScript` (r = 0.991). Keep the stronger one.
-- **Exclude `file_size`**: Redundant with `log_file_size` (which is 9x more predictive). Log transformation is essential.
+- **Exclude `file_size`**: Redundant with `log_file_size` (far more predictive). Log transformation is essential.
 
 ### Feature Engineering Code
 
